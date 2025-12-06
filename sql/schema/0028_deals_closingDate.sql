@@ -1,0 +1,5 @@
+-- +goose Up
+ALTER TABLE
+    deals
+ADD
+    COLUMN closed_date TIMESTAMP WITH TIME ZONE DEFAULT NULL;

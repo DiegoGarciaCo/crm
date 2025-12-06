@@ -1,0 +1,74 @@
+name: cd
+on:
+  push:
+    branches: [main]
+jobs:
+  build-and-push:
+    name: build-and-push
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+
+      - name: set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.0"
+          cache: true
+
+      - name: install dependencies
+        run: go mod download
+
+      - name: build app
+        run: CGO_ENABLED=0 GOOS=linux go build -o crm .
+
+      - name: build image
+        run: docker build -t dgarcia51/crm:${{ github.sha }} .
+
+      - name: tag image
+        run: docker tag dgarcia51/crm:${{ github.sha }} dgarcia51/crm:latest
+
+      - name: login to docker hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{vars.DOCKERHUB_USERNAME}}
+          password: ${{secrets.DOCKERHUB_TOKEN}}
+
+      - name: push image
+        run: |
+          docker push dgarcia51/crm:${{ github.sha }}
+          docker push dgarcia51/crm:latest
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs:
+      - build-and-push
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+
+      - name: Create .env file
+        run: |
+          echo PORT=${{ secrets.PORT }} >> .env.crm
+          echo DATABASE_URL=${{ secrets.DATABASE_URL }} >> .env.crm
+          echo JWT_SECRET=${{ secrets.JWT_SECRET }} >> .env.crm 
+          echo TOKEN_SECRET=${{ secrets.TOKEN_SECRET }} >> .env.crm
+          echo S3_REGION=${{ secrets.S3_REGION }} >> .env.crm
+          echo S3_BUCKET=${{ secrets.S3_BUCKET }} >> .env.crm
+          echo POSTMARK_SERVER_TOKEN=${{ secrets.POSTMARK_SERVER_TOKEN }} >> .env.crm
+          echo AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} >> .env.crm
+          echo AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} >> .env.crm
+          echo BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }} >> .env.crm
+
+      - name: deploy stack
+        uses: cssnr/stack-deploy-action@v1
+        with:
+          name: crm
+          file: docker-compose.yml
+          host: soldbyghost.com
+          user: ghost
+          ssh_key: ${{ secrets.SSH_KEY }}
+          env_file: .env.crm

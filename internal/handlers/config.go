@@ -1,0 +1,244 @@
+package handlers
+
+import (
+	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"database/sql"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"log"
+	"log/slog"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
+	"github.com/DiegoGarciaCo/CRM/internal/database"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/google/uuid"
+	"github.com/keighl/postmark"
+)
+
+type apiCfg struct {
+	Port             string
+	JWTSecret        string
+	DB               *database.Queries
+	RawDB            *sql.DB
+	dev              bool
+	logger           *slog.Logger
+	S3Client         *s3.Client
+	S3Bucket         string
+	S3Region         string
+	postmarkClient   *postmark.Client
+	EmailSecret      []byte
+	betterAuthSecret string
+}
+
+func New(port, JWTSecret string, db *database.Queries, dbSQL *sql.DB, dev bool, logger *slog.Logger, s3Client *s3.Client, s3Bucket string, s3Region string, postmarkClient *postmark.Client, emailSecret []byte, betterAuthSecret string) *apiCfg {
+	return &apiCfg{
+		Port:             port,
+		JWTSecret:        JWTSecret,
+		DB:               db,
+		RawDB:            dbSQL,
+		dev:              dev,
+		logger:           logger,
+		S3Client:         s3Client,
+		S3Bucket:         s3Bucket,
+		S3Region:         s3Region,
+		postmarkClient:   postmarkClient,
+		EmailSecret:      emailSecret,
+		betterAuthSecret: betterAuthSecret,
+	}
+}
+
+// JSON response helpers
+func respondWithError(w http.ResponseWriter, code int, msg string, err error) {
+	if err != nil {
+		log.Println(err)
+	}
+	if code > 499 {
+		log.Printf("Responding with 5XX error: %s", msg)
+	}
+	type errorResponse struct {
+		Error string `json:"error"`
+	}
+	respondWithJSON(w, code, errorResponse{
+		Error: msg,
+	})
+}
+
+func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Skip body for no-content statuses
+	if code == http.StatusNoContent || code == http.StatusAccepted {
+		w.WriteHeader(code)
+		return
+	}
+
+	// Marshal and write payload for other statuses
+	data, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("Error marshalling JSON: %s", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(code)
+	if _, err := w.Write(data); err != nil {
+		log.Printf("Error writing response: %s", err)
+		// Can't call WriteHeader again, response already sent
+	}
+}
+
+// key type for context
+type contextKey string
+
+const userIDKey contextKey = "userID"
+
+func VerifySignedCookie(cookieValue, secret string) (string, error) {
+	parts := strings.Split(cookieValue, ".")
+	if len(parts) != 2 {
+		return "", errors.New("invalid cookie format")
+	}
+
+	payload := parts[0]
+	signature := parts[1]
+
+	// Step 1: URL-decode the signature (handles %2B, %3D, etc.)
+	decodedSig, err := url.QueryUnescape(signature)
+	if err != nil {
+		decodedSig = signature // fallback to raw
+	}
+
+	// Step 2: Try standard Base64 decoding
+	if sigBytes, err := base64.StdEncoding.DecodeString(decodedSig); err == nil {
+		if verifyHMAC(payload, secret, sigBytes) {
+			return payload, nil
+		}
+	}
+
+	// Step 3: Try base64 URL encoding without padding
+	if sigBytes, err := base64.RawURLEncoding.DecodeString(decodedSig); err == nil {
+		if verifyHMAC(payload, secret, sigBytes) {
+			return payload, nil
+		}
+	}
+
+	return "", errors.New("invalid cookie signature")
+}
+
+func verifyHMAC(payload, secret string, signature []byte) bool {
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(payload))
+	expected := mac.Sum(nil)
+	return hmac.Equal(signature, expected)
+}
+
+func HashAPIKey(raw string) string {
+	sha := sha256.Sum256([]byte(raw))
+	return base64.RawURLEncoding.EncodeToString(sha[:])
+}
+
+// AuthMiddleware returns a middleware that validates the Better Auth session cookie
+func (cfg *apiCfg) AuthMiddleware() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/api/verify" || r.Method == http.MethodOptions {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			if strings.HasPrefix(r.URL.Path, "/webhooks/") {
+				cfg.logger.Debug("Bypassing auth for webhook", slog.String("path", r.URL.Path))
+				// Get X-API-Key header
+				apiKey := r.Header.Get("X-API-Key")
+				if apiKey == "" {
+					cfg.logger.Debug("Missing X-API-Key header", slog.String("path", r.URL.Path))
+					respondWithError(w, http.StatusUnauthorized, "Missing API key", nil)
+					return
+				}
+
+				// Hash the provided API key
+				hashedKey := HashAPIKey(apiKey)
+				cfg.logger.Debug("Hashed API key", slog.String("hashedKey", hashedKey))
+
+				// Check API key in database
+				dbKey, err := cfg.DB.GetAPIKeyByHash(r.Context(), hashedKey)
+				if err != nil {
+					cfg.logger.Debug("Invalid API key", slog.String("hashedKey", hashedKey), slog.String("error", err.Error()))
+					respondWithError(w, http.StatusUnauthorized, "Invalid API key", err)
+					return
+				}
+
+				// Check if API key is active
+				if dbKey.Enabled.Valid && !dbKey.Enabled.Bool {
+					cfg.logger.Debug("Disabled API key", slog.String("hashedKey", hashedKey))
+					respondWithError(w, http.StatusUnauthorized, "Disabled API key", nil)
+					return
+				}
+
+				// Check if API key expired
+				if dbKey.ExpiresAt.Valid && dbKey.ExpiresAt.Time.Before(time.Now()) {
+					cfg.logger.Debug("Expired API key", slog.String("hashedKey", hashedKey))
+					respondWithError(w, http.StatusUnauthorized, "Expired API key", nil)
+					return
+				}
+
+				cfg.logger.Debug("Valid API key", slog.String("hashedKey", hashedKey))
+
+				// Add userID to request context
+				ctx := context.WithValue(r.Context(), userIDKey, dbKey.UserId.String())
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+
+			// Get the Better Auth session cookie
+			cookie, err := r.Cookie("crm.session_token")
+			if err != nil {
+				respondWithError(w, http.StatusUnauthorized, "Missing session cookie", err)
+				return
+			}
+
+			// Verify the signed cookie
+			token, err := VerifySignedCookie(cookie.Value, cfg.betterAuthSecret)
+			if err != nil {
+				respondWithError(w, http.StatusUnauthorized, "Invalid session cookie", err)
+				return
+			}
+
+			// Query the Better Auth sessions table
+			dbToken, err := cfg.DB.CheckSessionByID(r.Context(), token)
+			if err != nil {
+				respondWithError(w, http.StatusUnauthorized, "Invalid session", err)
+				return
+			}
+
+			// Check if session expired
+			if dbToken.ExpiresAt.Before(time.Now()) {
+				respondWithError(w, http.StatusUnauthorized, "Session expired", nil)
+				return
+			}
+
+			// Add userID to request context
+			ctx := context.WithValue(r.Context(), userIDKey, dbToken.UserId.String())
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+// Helper to retrieve userID from context in handlers
+func GetUserUUID(ctx context.Context) (uuid.UUID, error) {
+	userID, ok := ctx.Value(userIDKey).(string)
+	if !ok {
+		return uuid.Nil, errors.New("user ID not found in context")
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	return userUUID, nil
+}

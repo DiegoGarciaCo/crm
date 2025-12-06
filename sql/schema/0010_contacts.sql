@@ -1,0 +1,20 @@
+-- +goose Up
+CREATE TABLE contacts (
+    ID UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "first_name" VARCHAR(100) NOT NULL,
+    "last_name" VARCHAR(100) NOT NULL,
+    "birthdate" DATE DEFAULT NULL,
+    "source" VARCHAR(100) DEFAULT NULL,
+    "status" VARCHAR(50) DEFAULT 'lead',
+    "address" VARCHAR(255) DEFAULT NULL,
+    "city" VARCHAR(100) DEFAULT NULL,
+    "state" VARCHAR(100) DEFAULT NULL,
+    "zip_code" VARCHAR(20) DEFAULT NULL,
+    "lender" VARCHAR(100) DEFAULT NULL,
+    "price_range" VARCHAR(50) DEFAULT NULL,
+    "timeframe" VARCHAR(50) DEFAULT NULL,
+    "owner_id" UUID REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    last_contacted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL
+);
