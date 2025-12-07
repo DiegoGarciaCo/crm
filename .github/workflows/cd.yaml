@@ -36,10 +36,10 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           push: true
-          tags: dgarcia51/crm:${{ github.sha }},dgarcia51/crm:latest
+          tags: dgarcia51/crmbackend:${{ github.sha }},dgarcia51/crmbackend:latest
           secrets: |
             "PORT=${{ secrets.PORT }}"
-            "DATABASE_URL=${{ secrets.DATABASE_URL }}"
+            "DATABASE_URL='${{ secrets.DATABASE_URL }}'"
             "JWT_SECRET=${{ secrets.JWT_SECRET }}"
             "S3_REGION=${{ secrets.S3_REGION }}"
             "S3_BUCKET=${{ secrets.S3_BUCKET }}"
