@@ -61,7 +61,7 @@ jobs:
       - name: Create .env file
         run: |
           echo PORT=${{ secrets.PORT }} >> .env.crm
-          echo DATABASE_URL='${{ secrets.DATABASE_URL }}' >> .env.crm
+          echo "DATABASE_URL='${{ secrets.DATABASE_URL }}'" >> .env.crm
           echo JWT_SECRET=${{ secrets.JWT_SECRET }} >> .env.crm 
           echo TOKEN_SECRET=${{ secrets.TOKEN_SECRET }} >> .env.crm
           echo S3_REGION=${{ secrets.S3_REGION }} >> .env.crm
