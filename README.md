@@ -11,7 +11,6 @@ A RESTful API for the Realtor CRM application, built with Go.
 ## Features
 - Handles agent and client data
 - Authentication and authorization
-- Stripe payment webhook processing
 - Postmark email integration
 - Environment-configured
 
