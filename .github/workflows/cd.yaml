@@ -23,22 +23,30 @@ jobs:
       - name: build app
         run: CGO_ENABLED=0 GOOS=linux go build -o crm .
 
-      - name: build image
-        run: docker build -t dgarcia51/crmbackend:${{ github.sha }} .
-
-      - name: tag image
-        run: docker tag dgarcia51/crmbackend:${{ github.sha }} dgarcia51/crmbackend:latest
-
       - name: login to docker hub
         uses: docker/login-action@v3
         with:
           username: ${{vars.DOCKERHUB_USERNAME}}
           password: ${{secrets.DOCKERHUB_TOKEN}}
 
-      - name: push image
-        run: |
-          docker push dgarcia51/crmbackend:${{ github.sha }}
-          docker push dgarcia51/crmbackend:latest
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: dgarcia51/crm:${{ github.sha }},dgarcia51/crm:latest
+          secrets: |
+            "PORT=${{ secrets.PORT }}"
+            "DATABASE_URL=${{ secrets.DATABASE_URL }}"
+            "JWT_SECRET=${{ secrets.JWT_SECRET }}"
+            "S3_REGION=${{ secrets.S3_REGION }}"
+            "S3_BUCKET=${{ secrets.S3_BUCKET }}"
+            "POSTMARK_SERVER_TOKEN=${{ secrets.POSTMARK_SERVER_TOKEN }}"
+            "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}"
+            "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+            "BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}"
 
   deploy:
     name: Deploy
@@ -53,7 +61,7 @@ jobs:
       - name: Create .env file
         run: |
           echo PORT=${{ secrets.PORT }} >> .env.crm
-          echo DATABASE_URL=${{ secrets.DATABASE_URL }} >> .env.crm
+          echo DATABASE_URL='${{ secrets.DATABASE_URL }}' >> .env.crm
           echo JWT_SECRET=${{ secrets.JWT_SECRET }} >> .env.crm 
           echo TOKEN_SECRET=${{ secrets.TOKEN_SECRET }} >> .env.crm
           echo S3_REGION=${{ secrets.S3_REGION }} >> .env.crm
