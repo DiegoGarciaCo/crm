@@ -1,6 +1,6 @@
 services:
   app:
-    image: dgarcia51/crm:latest
+    image: dgarcia51/crmbackend:latest
     ports:
       - "3007:3007"
     environment:
