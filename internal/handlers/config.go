@@ -201,17 +201,19 @@ func (cfg *apiCfg) AuthMiddleware() func(http.Handler) http.Handler {
 				return
 			}
 
-			// Get the Better Auth session cookie
+			// Debug: log the raw Cookie header exactly as received
+			rawCookieHeader := r.Header.Get("Cookie")
+			cfg.logger.Info("Raw Cookie Header", slog.String("cookie", rawCookieHeader))
+
 			cookie, err := r.Cookie("crm.session_token")
 			if err != nil {
-				if len(r.Cookies()) == 0 {
-					cfg.logger.Info("No cookies received")
-				} else {
-					// Log all cookies
-					for _, c := range r.Cookies() {
-						cfg.logger.Info("Cookie received:", c.Name, c.Value)
-					}
+				cfg.logger.Error("Error parsing crm.session_token", slog.String("error", err.Error()))
+
+				// Log all cookies Go *did* manage to parse
+				for _, c := range r.Cookies() {
+					cfg.logger.Info("Parsed Cookie", slog.String("name", c.Name), slog.String("value", c.Value))
 				}
+
 				respondWithError(w, http.StatusUnauthorized, "Missing session cookie", err)
 				return
 			}
