@@ -222,8 +222,9 @@ func main() {
 	// ------------------------------------------------------------
 	// Wrap mux with CORS handler, middleware and start server
 	// ------------------------------------------------------------
-	handler := corsHandler.Handler(mux)
-	handler = cfg.AuthMiddleware()(handler)
+	handler := cfg.AuthMiddleware()(mux)
+	handler = cfg.LoggerMiddleware(handler)
+	handler = corsHandler.Handler(handler)
 
 	// Configure server
 	srv := &http.Server{

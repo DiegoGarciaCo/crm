@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bufio"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -8,8 +9,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -19,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/google/uuid"
 	"github.com/keighl/postmark"
+	"github.com/sirupsen/logrus"
 )
 
 type apiCfg struct {
@@ -141,7 +145,10 @@ func HashAPIKey(raw string) string {
 	return base64.RawURLEncoding.EncodeToString(sha[:])
 }
 
-// AuthMiddleware returns a middleware that validates the Better Auth session cookie
+// --------------------------------------------------------------
+// Authentication middleware
+// --------------------------------------------------------------
+
 func (cfg *apiCfg) AuthMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -197,6 +204,14 @@ func (cfg *apiCfg) AuthMiddleware() func(http.Handler) http.Handler {
 			// Get the Better Auth session cookie
 			cookie, err := r.Cookie("crm.session_token")
 			if err != nil {
+				if len(r.Cookies()) == 0 {
+					cfg.logger.Info("No cookies received")
+				} else {
+					// Log all cookies
+					for _, c := range r.Cookies() {
+						cfg.logger.Info("Cookie received:", c.Name, c.Value)
+					}
+				}
 				respondWithError(w, http.StatusUnauthorized, "Missing session cookie", err)
 				return
 			}
@@ -226,6 +241,74 @@ func (cfg *apiCfg) AuthMiddleware() func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+// --------------------------------------------------------------
+// Logger middleware
+// --------------------------------------------------------------
+
+const (
+	requestIDKey contextKey = "requestID"
+)
+
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if hj, ok := rw.ResponseWriter.(http.Hijacker); ok {
+		return hj.Hijack()
+	}
+	return nil, nil, fmt.Errorf("underlying ResponseWriter does not implement http.Hijacker")
+}
+
+func (cfg *apiCfg) LoggerMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		wrappedWriter := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+
+		// Generate and set request ID before calling the next handler
+		requestID := uuid.New().String()
+		r = r.WithContext(context.WithValue(r.Context(), requestIDKey, requestID))
+
+		// Call the next handler
+		next.ServeHTTP(wrappedWriter, r)
+
+		duration := time.Since(start)
+
+		// Handle client IP with load balancer
+		clientIP := r.Header.Get("X-Forwarded-For")
+		if clientIP == "" {
+			clientIP = r.Header.Get("X-Real-IP")
+		}
+		if clientIP == "" {
+			clientIP = r.RemoteAddr
+		}
+
+		// Build log fields
+		fields := logrus.Fields{
+			"request_id": requestID,
+			"method":     r.Method,
+			"path":       r.URL.Path, // or r.URL.String() for full URL
+			"status":     wrappedWriter.statusCode,
+			"duration":   duration.Milliseconds(),
+			"client_ip":  clientIP,
+			"timestamp":  time.Now().UTC().Format(time.RFC3339),
+		}
+
+		// Log based on status code
+		if wrappedWriter.statusCode >= 400 {
+			logrus.WithFields(fields).Error("Request failed")
+		} else {
+			logrus.WithFields(fields).Info("Request processed")
+		}
+	})
 }
 
 // Helper to retrieve userID from context in handlers
