@@ -201,11 +201,16 @@ func (cfg *apiCfg) AuthMiddleware() func(http.Handler) http.Handler {
 				return
 			}
 
+			cookieName := "__Secure-crm.session_token"
+			if cfg.dev == true {
+				cookieName = "crm.session_token"
+			}
+
 			// Debug: log the raw Cookie header exactly as received
 			rawCookieHeader := r.Header.Get("Cookie")
 			cfg.logger.Info("Raw Cookie Header", slog.String("cookie", rawCookieHeader))
 
-			cookie, err := r.Cookie("crm.session_token")
+			cookie, err := r.Cookie(cookieName)
 			if err != nil {
 				cfg.logger.Error("Error parsing crm.session_token", slog.String("error", err.Error()))
 
