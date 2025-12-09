@@ -111,6 +111,9 @@ func main() {
 
 	postmarkClient := postmark.Client{
 		ServerToken: postmarkServerToken,
+		HTTPClient: &http.Client{
+			Timeout: 10 * time.Second,
+		},
 	}
 	EmailSecret := []byte(JWTSecret)
 
