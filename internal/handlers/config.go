@@ -38,9 +38,10 @@ type apiCfg struct {
 	postmarkClient   *postmark.Client
 	EmailSecret      []byte
 	betterAuthSecret string
+	BaseURL          string
 }
 
-func New(port, JWTSecret string, db *database.Queries, dbSQL *sql.DB, dev bool, logger *slog.Logger, s3Client *s3.Client, s3Bucket string, s3Region string, postmarkClient *postmark.Client, emailSecret []byte, betterAuthSecret string) *apiCfg {
+func New(port, JWTSecret string, db *database.Queries, dbSQL *sql.DB, dev bool, logger *slog.Logger, s3Client *s3.Client, s3Bucket string, s3Region string, postmarkClient *postmark.Client, emailSecret []byte, betterAuthSecret string, baseURL string) *apiCfg {
 	return &apiCfg{
 		Port:             port,
 		JWTSecret:        JWTSecret,
@@ -54,6 +55,7 @@ func New(port, JWTSecret string, db *database.Queries, dbSQL *sql.DB, dev bool, 
 		postmarkClient:   postmarkClient,
 		EmailSecret:      emailSecret,
 		betterAuthSecret: betterAuthSecret,
+		BaseURL:          baseURL,
 	}
 }
 

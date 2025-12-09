@@ -58,10 +58,10 @@ func (cfg *apiCfg) GenerateEmailToken(email string) (string, error) {
 }
 
 func (cfg *apiCfg) SendVerificationEmail(to, token string) error {
-	verifyURL := "https://yourdomain.com/api/verify?token=" + token
+	verifyURL := cfg.BaseURL + "/api/verify?token=" + token
 
 	_, err := cfg.postmarkClient.SendEmail(postmark.Email{
-		From:     "no-reply@yourdomain.com",
+		From:     "diego.garcia@soldbyghost.com",
 		To:       to,
 		Subject:  "Verify your email",
 		HtmlBody: fmt.Sprintf("<p>Click here to verify:</p><p><a href='%s'>Verify Email</a></p>", verifyURL),

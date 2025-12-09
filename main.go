@@ -62,6 +62,10 @@ func main() {
 	if betterAuthSecret == "" {
 		log.Fatal("BETTER_AUTH_SECRET is not set")
 	}
+	serverURL := os.Getenv("SERVER_BASE_URL")
+	if serverURL == "" {
+		log.Fatal("SERVER_BASE_URL is not set")
+	}
 
 	// -----------------------------------------------
 	// Initialize Logger
@@ -111,6 +115,7 @@ func main() {
 
 	postmarkClient := postmark.Client{
 		ServerToken: postmarkServerToken,
+		BaseURL:     "https://api.postmarkapp.com",
 		HTTPClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -120,7 +125,7 @@ func main() {
 	// ------------------------------------------------
 	// Initialize config, server and cors
 	// ------------------------------------------------
-	cfg := handlers.New(port, JWTSecret, dbQueries, db, dev, logger, s3Client, s3Bucket, s3Region, &postmarkClient, EmailSecret, betterAuthSecret)
+	cfg := handlers.New(port, JWTSecret, dbQueries, db, dev, logger, s3Client, s3Bucket, s3Region, &postmarkClient, EmailSecret, betterAuthSecret, serverURL)
 
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins:   []string{"https://access.soldbyghost.com", "https://app.soldbyghost.com"},
