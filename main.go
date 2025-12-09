@@ -66,6 +66,10 @@ func main() {
 	if serverURL == "" {
 		log.Fatal("SERVER_BASE_URL is not set")
 	}
+	fromEmail := os.Getenv("FROM_EMAIL_ADDRESS")
+	if fromEmail == "" {
+		log.Fatal("FROM_EMAIL_ADDRESS is not set")
+	}
 
 	// -----------------------------------------------
 	// Initialize Logger
@@ -125,7 +129,7 @@ func main() {
 	// ------------------------------------------------
 	// Initialize config, server and cors
 	// ------------------------------------------------
-	cfg := handlers.New(port, JWTSecret, dbQueries, db, dev, logger, s3Client, s3Bucket, s3Region, &postmarkClient, EmailSecret, betterAuthSecret, serverURL)
+	cfg := handlers.New(port, JWTSecret, dbQueries, db, dev, logger, s3Client, s3Bucket, s3Region, &postmarkClient, EmailSecret, betterAuthSecret, serverURL, fromEmail)
 
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins:   []string{"https://access.soldbyghost.com", "https://app.soldbyghost.com"},
