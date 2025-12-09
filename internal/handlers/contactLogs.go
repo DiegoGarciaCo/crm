@@ -13,21 +13,30 @@ func (cfg *apiCfg) LogContact(w http.ResponseWriter, r *http.Request) {
 	type request struct {
 		ContactID     string `json:"contact_id"`
 		ContactMethod string `json:"contact_method"`
-		CreatedBy     string `json:"created_by"`
 		Note          string `json:"note"`
+	}
+	createdBy, err := GetUserUUID(r.Context())
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Unauthorized", err)
+		return
 	}
 
 	var req request
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid request payload", err)
 		return
 	}
+	contactUUID, err := uuid.Parse(req.ContactID)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid contact ID", err)
+		return
+	}
 
 	log, err := cfg.DB.LogContact(r.Context(), database.LogContactParams{
-		ContactID:     uuid.NullUUID{UUID: uuid.MustParse(req.ContactID), Valid: req.ContactID != ""},
+		ContactID:     uuid.NullUUID{UUID: contactUUID, Valid: true},
 		ContactMethod: req.ContactMethod,
-		CreatedBy:     uuid.NullUUID{UUID: uuid.MustParse(req.CreatedBy), Valid: req.CreatedBy != ""},
+		CreatedBy:     uuid.NullUUID{UUID: createdBy, Valid: createdBy != uuid.Nil},
 		Note:          sql.NullString{String: req.Note, Valid: req.Note != ""},
 	})
 	if err != nil {

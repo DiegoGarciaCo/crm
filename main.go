@@ -24,7 +24,7 @@ import (
 func main() {
 	// err := godotenv.Load()
 	// if err != nil {
-	// 	log.Fatalf("Error loading .env file: %v", err)
+	// log.Fatalf("Error loading .env file: %v", err)
 	// }
 
 	// ------------------------------------------------
@@ -227,6 +227,7 @@ func main() {
 
 	// Email Routes
 	mux.HandleFunc("GET /api/verify", cfg.VerifyEmail)
+	mux.HandleFunc("POST /api/resend-verification", cfg.ResendVerificationEmail)
 
 	// S3 Routes
 	mux.HandleFunc("PUT /api/upload-profile-picture", cfg.UploadProfilePicture)
