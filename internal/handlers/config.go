@@ -158,42 +158,34 @@ func (cfg *apiCfg) AuthMiddleware() func(http.Handler) http.Handler {
 			}
 
 			if strings.HasPrefix(r.URL.Path, "/webhooks/") {
-				cfg.logger.Debug("Bypassing auth for webhook", slog.String("path", r.URL.Path))
 				// Get X-API-Key header
 				apiKey := r.Header.Get("X-API-Key")
 				if apiKey == "" {
-					cfg.logger.Debug("Missing X-API-Key header", slog.String("path", r.URL.Path))
 					respondWithError(w, http.StatusUnauthorized, "Missing API key", nil)
 					return
 				}
 
 				// Hash the provided API key
 				hashedKey := HashAPIKey(apiKey)
-				cfg.logger.Debug("Hashed API key", slog.String("hashedKey", hashedKey))
 
 				// Check API key in database
 				dbKey, err := cfg.DB.GetAPIKeyByHash(r.Context(), hashedKey)
 				if err != nil {
-					cfg.logger.Debug("Invalid API key", slog.String("hashedKey", hashedKey), slog.String("error", err.Error()))
 					respondWithError(w, http.StatusUnauthorized, "Invalid API key", err)
 					return
 				}
 
 				// Check if API key is active
 				if dbKey.Enabled.Valid && !dbKey.Enabled.Bool {
-					cfg.logger.Debug("Disabled API key", slog.String("hashedKey", hashedKey))
 					respondWithError(w, http.StatusUnauthorized, "Disabled API key", nil)
 					return
 				}
 
 				// Check if API key expired
 				if dbKey.ExpiresAt.Valid && dbKey.ExpiresAt.Time.Before(time.Now()) {
-					cfg.logger.Debug("Expired API key", slog.String("hashedKey", hashedKey))
 					respondWithError(w, http.StatusUnauthorized, "Expired API key", nil)
 					return
 				}
-
-				cfg.logger.Debug("Valid API key", slog.String("hashedKey", hashedKey))
 
 				// Add userID to request context
 				ctx := context.WithValue(r.Context(), userIDKey, dbKey.UserId.String())

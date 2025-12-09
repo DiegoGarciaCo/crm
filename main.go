@@ -211,7 +211,7 @@ func main() {
 	mux.HandleFunc("DELETE /api/tags/{tagID}/contact/{contactID}", cfg.RemoveTagFromContact)
 
 	// Webhooks Routes
-	mux.HandleFunc("POST /api/webhooks/landing-page-form", cfg.CollectLandingPageForm)
+	mux.HandleFunc("POST /webhooks/landing-page-form", cfg.CollectLandingPageForm)
 
 	// Email Routes
 	mux.HandleFunc("GET /api/verify", cfg.VerifyEmail)
