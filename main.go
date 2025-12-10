@@ -14,7 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
-	// "github.com/joho/godotenv"
+	"github.com/joho/godotenv"
 	"github.com/keighl/postmark"
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
@@ -22,10 +22,10 @@ import (
 )
 
 func main() {
-	// err := godotenv.Load()
-	// if err != nil {
-	// log.Fatalf("Error loading .env file: %v", err)
-	// }
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatalf("Error loading .env file: %v", err)
+	}
 
 	// ------------------------------------------------
 	// Get configuration from environment variables
@@ -132,7 +132,7 @@ func main() {
 	cfg := handlers.New(port, JWTSecret, dbQueries, db, dev, logger, s3Client, s3Bucket, s3Region, &postmarkClient, EmailSecret, betterAuthSecret, serverURL, fromEmail)
 
 	corsHandler := cors.New(cors.Options{
-		AllowedOrigins:   []string{"https://access.soldbyghost.com", "https://app.soldbyghost.com"},
+		AllowedOrigins:   []string{"https://access.soldbyghost.com", "https://app.soldbyghost.com", "http://localhost:3000"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization", "X-API-KEY"},
 		AllowCredentials: true,
@@ -152,6 +152,7 @@ func main() {
 	mux.HandleFunc("GET /api/dashboard/5-newest-contacts", cfg.Get5NewestContacts)
 	mux.HandleFunc("GET /api/dashboard/5-upcoming-appointments", cfg.Get5UpcomingAppointments)
 	mux.HandleFunc("GET /api/dashboard/contacts-count", cfg.GetContactsCount)
+	mux.HandleFunc("GET /api/dashboard/contacts-by-source", cfg.ContactCountBySource)
 
 	// Contact Routes
 	mux.HandleFunc("POST /api/contacts", cfg.CreateContact)

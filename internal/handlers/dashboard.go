@@ -101,3 +101,19 @@ func (cfg *apiCfg) GetContactsCount(w http.ResponseWriter, r *http.Request) {
 
 	respondWithJSON(w, http.StatusOK, map[string]int{"contacts_count": int(count)})
 }
+
+func (cfg *apiCfg) ContactCountBySource(w http.ResponseWriter, r *http.Request) {
+	ownerUUID, err := GetUserUUID(r.Context())
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid owner ID", err)
+		return
+	}
+
+	counts, err := cfg.DB.ContactsBySource(r.Context(), uuid.NullUUID{UUID: ownerUUID, Valid: true})
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to retrieve contact counts by source", err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, counts)
+}

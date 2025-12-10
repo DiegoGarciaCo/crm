@@ -31,6 +31,48 @@ func (q *Queries) AppointmentsThisWeek(ctx context.Context, assignedToID uuid.Nu
 	return appointments_this_week, err
 }
 
+const contactsBySource = `-- name: ContactsBySource :many
+SELECT
+    source,
+    count(*) AS contact_count
+FROM
+    contacts
+WHERE
+    owner_id = $1
+GROUP BY
+    source
+ORDER BY
+    contact_count DESC
+`
+
+type ContactsBySourceRow struct {
+	Source       sql.NullString
+	ContactCount int64
+}
+
+func (q *Queries) ContactsBySource(ctx context.Context, ownerID uuid.NullUUID) ([]ContactsBySourceRow, error) {
+	rows, err := q.db.QueryContext(ctx, contactsBySource, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ContactsBySourceRow
+	for rows.Next() {
+		var i ContactsBySourceRow
+		if err := rows.Scan(&i.Source, &i.ContactCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const contactsCount = `-- name: ContactsCount :one
 SELECT
     count(*) AS total_contacts

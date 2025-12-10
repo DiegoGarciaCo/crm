@@ -119,3 +119,16 @@ FROM
     contacts
 WHERE
     owner_id = $1;
+
+-- name: ContactsBySource :many
+SELECT
+    source,
+    count(*) AS contact_count
+FROM
+    contacts
+WHERE
+    owner_id = $1
+GROUP BY
+    source
+ORDER BY
+    contact_count DESC;
