@@ -88,3 +88,56 @@ func (cfg *apiCfg) GetStagesByClientType(w http.ResponseWriter, r *http.Request)
 
 	respondWithJSON(w, http.StatusOK, stages)
 }
+
+func (cfg *apiCfg) UpdateStage(w http.ResponseWriter, r *http.Request) {
+	type request struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		ClientType  string `json:"client_type"`
+		OrderIndex  int    `json:"order_index"`
+	}
+
+	// Get stageID from URL
+	stageUUID, err := GetUUIDFromUrl("stageID", r)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid stage ID", err)
+		return
+	}
+
+	var req request
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload", err)
+		return
+	}
+
+	stage, err := cfg.DB.UpdateStage(r.Context(), database.UpdateStageParams{
+		ID:          stageUUID,
+		Name:        req.Name,
+		Description: sql.NullString{String: req.Description, Valid: req.Description != ""},
+		ClientType:  database.ClientType(req.ClientType),
+		OrderIndex:  int32(req.OrderIndex),
+	})
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to update stage", err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, stage)
+}
+
+func (cfg *apiCfg) DeleteStage(w http.ResponseWriter, r *http.Request) {
+	// Get stageID from URL
+	stageUUID, err := GetUUIDFromUrl("stageID", r)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid stage ID", err)
+		return
+	}
+
+	err = cfg.DB.DeleteStage(r.Context(), stageUUID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to delete stage", err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusNoContent, nil)
+}
