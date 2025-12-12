@@ -55,17 +55,28 @@ func (q *Queries) GetContactLogsByContactID(ctx context.Context, contactID uuid.
 }
 
 const logContact = `-- name: LogContact :one
-INSERT INTO
-    contact_logs (
-        contact_id,
-        contact_method,
-        created_by,
-        note
-    )
-VALUES
-    ($1, $2, $3, $4)
-RETURNING
+WITH inserted AS (
+    INSERT INTO
+        contact_logs(contact_id, contact_method, created_by, note)
+    VALUES
+        ($1, $2, $3, $4)
+    RETURNING
+        id, contact_id, contact_method, created_by, note, created_at, updated_at
+),
+updated AS (
+    UPDATE
+        contacts
+    SET
+        last_contacted_at = NOW()
+    WHERE
+        id = $1
+    RETURNING
+        id
+)
+SELECT
     id, contact_id, contact_method, created_by, note, created_at, updated_at
+FROM
+    inserted
 `
 
 type LogContactParams struct {
@@ -75,14 +86,24 @@ type LogContactParams struct {
 	Note          sql.NullString
 }
 
-func (q *Queries) LogContact(ctx context.Context, arg LogContactParams) (ContactLog, error) {
+type LogContactRow struct {
+	ID            uuid.UUID
+	ContactID     uuid.NullUUID
+	ContactMethod string
+	CreatedBy     uuid.NullUUID
+	Note          sql.NullString
+	CreatedAt     sql.NullTime
+	UpdatedAt     sql.NullTime
+}
+
+func (q *Queries) LogContact(ctx context.Context, arg LogContactParams) (LogContactRow, error) {
 	row := q.db.QueryRowContext(ctx, logContact,
 		arg.ContactID,
 		arg.ContactMethod,
 		arg.CreatedBy,
 		arg.Note,
 	)
-	var i ContactLog
+	var i LogContactRow
 	err := row.Scan(
 		&i.ID,
 		&i.ContactID,
