@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE subscription (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "plan" TEXT NOT NULL,
@@ -10,5 +11,5 @@ CREATE TABLE subscription (
     "cancelAtPeriodEnd" BOOLEAN,
     "seats" INTEGER,
     "trialStart" TIMESTAMPTZ,
-    "trialEnd" TIMESTAMPTZ,
+    "trialEnd" TIMESTAMPTZ
 );

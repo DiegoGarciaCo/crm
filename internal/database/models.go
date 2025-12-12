@@ -390,8 +390,8 @@ type Deal struct {
 	AppraisalDate        sql.NullTime
 	FinalWalkthroughDate sql.NullTime
 	PossessionDate       sql.NullTime
-	Commission           sql.NullInt32
-	CommissionSplit      sql.NullInt32
+	Commission           sql.NullString
+	CommissionSplit      sql.NullString
 	PropertyAddress      sql.NullString
 	PropertyCity         sql.NullString
 	PropertyState        sql.NullString
@@ -516,6 +516,21 @@ type Stage struct {
 	OwnerID              uuid.NullUUID
 }
 
+type Subscription struct {
+	ID                   uuid.UUID
+	Plan                 string
+	ReferenceId          uuid.UUID
+	StripeCustomerId     sql.NullString
+	StripeSubscriptionId sql.NullString
+	Status               string
+	PeriodStart          sql.NullTime
+	PeriodEnd            sql.NullTime
+	CancelAtPeriodEnd    sql.NullBool
+	Seats                sql.NullInt32
+	TrialStart           sql.NullTime
+	TrialEnd             sql.NullTime
+}
+
 type Tag struct {
 	ID          uuid.UUID
 	Name        string
@@ -560,6 +575,7 @@ type User struct {
 	BanReason        sql.NullString
 	BanExpires       sql.NullTime
 	StripeCustomerId sql.NullString
+	TrialAllowed     bool
 }
 
 type Verification struct {

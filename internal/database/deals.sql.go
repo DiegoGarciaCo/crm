@@ -114,8 +114,8 @@ type CreateDealParams struct {
 	FinalWalkthroughDate sql.NullTime
 	PossessionDate       sql.NullTime
 	ClosedDate           sql.NullTime
-	Commission           sql.NullInt32
-	CommissionSplit      sql.NullInt32
+	Commission           sql.NullString
+	CommissionSplit      sql.NullString
 	PropertyAddress      sql.NullString
 	PropertyCity         sql.NullString
 	PropertyState        sql.NullString
@@ -474,8 +474,8 @@ type UpdateDealParams struct {
 	AppraisalDate        sql.NullTime
 	FinalWalkthroughDate sql.NullTime
 	PossessionDate       sql.NullTime
-	Commission           sql.NullInt32
-	CommissionSplit      sql.NullInt32
+	Commission           sql.NullString
+	CommissionSplit      sql.NullString
 	PropertyAddress      sql.NullString
 	PropertyCity         sql.NullString
 	PropertyState        sql.NullString

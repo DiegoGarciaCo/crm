@@ -3,8 +3,6 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
-	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -16,7 +14,6 @@ func (cfg *apiCfg) SetGoal(w http.ResponseWriter, r *http.Request) {
 	// Get User ID from url
 	userUUID, err := GetUserUUID(r.Context())
 	if err != nil {
-		slog.Error("Invalid User ID", "error", err, "UserID", userUUID)
 		respondWithError(w, http.StatusBadRequest, "Invalid User ID", err)
 		return
 	}
@@ -89,19 +86,16 @@ func (cfg *apiCfg) GetGoalByUserAndYear(w http.ResponseWriter, r *http.Request) 
 		Year:   int32(yearInt),
 	})
 	if err == sql.ErrNoRows {
-		cfg.logger.Info("No goal found for user", "ID", userUUID, "Year:", yearInt)
 		respondWithJSON(w, http.StatusOK, map[string]interface{}{
 			"goal": nil,
 		})
 		return
 	}
 	if err != nil {
-		fmt.Println("Error fetching goal:", err)
 		respondWithError(w, http.StatusInternalServerError, "Failed to get goal", err)
 		return
 	}
 
-	cfg.logger.Info("Goal fetched successfully", "UserID", userUUID, "Year:", yearInt, "goal", goal)
 	respondWithJSON(w, http.StatusOK, goal)
 }
 
@@ -115,7 +109,7 @@ func (cfg *apiCfg) UpdateGoal(w http.ResponseWriter, r *http.Request) {
 
 	type request struct {
 		Income_goal                       string `json:"income_goal"`
-		Transaction_goal                  int    `json:"transaction_goal"`
+		Transaction_goal                  string `json:"transaction_goal"`
 		Estimated_average_sale_price      string `json:"estimated_average_sale_price"`
 		Estimated_average_commission_rate string `json:"estimated_average_commission_rate"`
 	}
@@ -127,10 +121,17 @@ func (cfg *apiCfg) UpdateGoal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Parse transaction goal to int
+	transactionGoal, err := strconv.Atoi(req.Transaction_goal)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Transaction Goal", err)
+		return
+	}
+
 	goal, err := cfg.DB.UpdateGoal(r.Context(), database.UpdateGoalParams{
 		ID:                             goalUUID,
 		IncomeGoal:                     sql.NullString{String: req.Income_goal, Valid: true},
-		TransactionGoal:                sql.NullInt32{Int32: int32(req.Transaction_goal), Valid: true},
+		TransactionGoal:                sql.NullInt32{Int32: int32(transactionGoal), Valid: transactionGoal != 0},
 		EstimatedAverageSalePrice:      sql.NullString{String: req.Estimated_average_sale_price, Valid: true},
 		EstimatedAverageCommissionRate: sql.NullString{String: req.Estimated_average_commission_rate, Valid: true},
 	})

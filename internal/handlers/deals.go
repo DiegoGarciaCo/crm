@@ -146,6 +146,10 @@ func (cfg *apiCfg) CreateDeal(w http.ResponseWriter, r *http.Request) {
 		possessionDate = date
 	}
 
+	// Turn commission and commission split into strings
+	commissionStr := strconv.FormatFloat(req.Commission, 'f', 2, 64)
+	commissionSplitStr := strconv.FormatFloat(req.CommissionSplit, 'f', 2, 64)
+
 	deal, err := cfg.DB.CreateDeal(r.Context(), database.CreateDealParams{
 		ContactID:            uuid.NullUUID{UUID: contactUUID, Valid: true},
 		AssignedToID:         uuid.NullUUID{UUID: assignedToUUID, Valid: true},
@@ -158,8 +162,8 @@ func (cfg *apiCfg) CreateDeal(w http.ResponseWriter, r *http.Request) {
 		AppraisalDate:        sql.NullTime{Time: appraisalDate, Valid: appraisalDate != time.Time{}},
 		FinalWalkthroughDate: sql.NullTime{Time: finalWalkthroughDate, Valid: finalWalkthroughDate != time.Time{}},
 		PossessionDate:       sql.NullTime{Time: possessionDate, Valid: possessionDate != time.Time{}},
-		Commission:           sql.NullInt32{Int32: int32(req.Commission), Valid: true},
-		CommissionSplit:      sql.NullInt32{Int32: int32(req.CommissionSplit), Valid: true},
+		Commission:           sql.NullString{String: commissionStr, Valid: req.Commission != 0},
+		CommissionSplit:      sql.NullString{String: commissionSplitStr, Valid: req.CommissionSplit != 0},
 		PropertyAddress:      sql.NullString{String: req.PropertyAddress, Valid: req.PropertyAddress != ""},
 		PropertyCity:         sql.NullString{String: req.PropertyCity, Valid: req.PropertyCity != ""},
 		PropertyState:        sql.NullString{String: req.PropertyState, Valid: req.PropertyState != ""},
@@ -337,6 +341,10 @@ func (cfg *apiCfg) UpdateDeal(w http.ResponseWriter, r *http.Request) {
 		possessionDate = date
 	}
 
+	// Convert commission and commission split into strings
+	commissionStr := strconv.FormatFloat(req.Commission, 'f', 2, 64)
+	commissionSplitStr := strconv.FormatFloat(req.CommissionSplit, 'f', 2, 64)
+
 	deal, err := cfg.DB.UpdateDeal(r.Context(), database.UpdateDealParams{
 		ID:                   dealUUID,
 		ContactID:            uuid.NullUUID{UUID: contactUUID, Valid: true},
@@ -350,8 +358,8 @@ func (cfg *apiCfg) UpdateDeal(w http.ResponseWriter, r *http.Request) {
 		AppraisalDate:        sql.NullTime{Time: appraisalDate, Valid: appraisalDate != time.Time{}},
 		FinalWalkthroughDate: sql.NullTime{Time: finalWalkthroughDate, Valid: finalWalkthroughDate != time.Time{}},
 		PossessionDate:       sql.NullTime{Time: possessionDate, Valid: possessionDate != time.Time{}},
-		Commission:           sql.NullInt32{Int32: int32(req.Commission), Valid: true},
-		CommissionSplit:      sql.NullInt32{Int32: int32(req.CommissionSplit), Valid: true},
+		Commission:           sql.NullString{String: commissionStr, Valid: req.Commission != 0},
+		CommissionSplit:      sql.NullString{String: commissionSplitStr, Valid: req.CommissionSplit != 0},
 		PropertyAddress:      sql.NullString{String: req.PropertyAddress, Valid: req.PropertyAddress != ""},
 		PropertyCity:         sql.NullString{String: req.PropertyCity, Valid: req.PropertyCity != ""},
 		PropertyState:        sql.NullString{String: req.PropertyState, Valid: req.PropertyState != ""},
