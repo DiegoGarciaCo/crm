@@ -41,6 +41,18 @@ func (q *Queries) BulkEnterEmails(ctx context.Context, arg BulkEnterEmailsParams
 	return err
 }
 
+const deleteEmail = `-- name: DeleteEmail :exec
+DELETE FROM
+    emails
+WHERE
+    id = $1
+`
+
+func (q *Queries) DeleteEmail(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteEmail, id)
+	return err
+}
+
 const enterEmail = `-- name: EnterEmail :exec
 INSERT INTO
     emails (contact_id, email_address, TYPE, is_primary)
@@ -84,6 +96,36 @@ FROM
 
 func (q *Queries) TestBulkInsertEmails(ctx context.Context, dollar_1 json.RawMessage) error {
 	_, err := q.db.ExecContext(ctx, testBulkInsertEmails, dollar_1)
+	return err
+}
+
+const updateEmail = `-- name: UpdateEmail :exec
+UPDATE
+    emails
+SET
+    email_address = $2,
+    TYPE = $3,
+    is_primary = $4
+WHERE
+    id = $1
+RETURNING
+    id, contact_id, email_address, type, is_primary, created_at, updated_at, is_verified, is_subscribed
+`
+
+type UpdateEmailParams struct {
+	ID           uuid.UUID
+	EmailAddress string
+	Type         sql.NullString
+	IsPrimary    sql.NullBool
+}
+
+func (q *Queries) UpdateEmail(ctx context.Context, arg UpdateEmailParams) error {
+	_, err := q.db.ExecContext(ctx, updateEmail,
+		arg.ID,
+		arg.EmailAddress,
+		arg.Type,
+		arg.IsPrimary,
+	)
 	return err
 }
 

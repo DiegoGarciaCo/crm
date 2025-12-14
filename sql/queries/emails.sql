@@ -4,6 +4,24 @@ INSERT INTO
 VALUES
     ($1, $2, $3, $4);
 
+-- name: UpdateEmail :exec
+UPDATE
+    emails
+SET
+    email_address = $2,
+    TYPE = $3,
+    is_primary = $4
+WHERE
+    id = $1
+RETURNING
+    *;
+
+-- name: DeleteEmail :exec
+DELETE FROM
+    emails
+WHERE
+    id = $1;
+
 -- name: BulkEnterEmails :exec
 INSERT INTO
     emails (contact_id, email, TYPE, is_primary)
