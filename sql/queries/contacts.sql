@@ -104,7 +104,21 @@ SELECT
                 ct.contact_id = c.id
         ),
         '[]'
-    ) AS tags
+    ) AS tags,
+    coalesce(
+        (
+            SELECT
+                json_agg(
+                    json_build_object('id', u.id, 'name', u.name, 'role', cb.role)
+                )::text
+            FROM
+                collaborators cb
+                JOIN users u ON cb.user_id = u.id
+            WHERE
+                cb.contact_id = c.id
+        ),
+        '[]'
+    ) AS collaborators
 FROM
     contacts c
 WHERE
@@ -112,13 +126,28 @@ WHERE
 
 -- name: GetAllContacts :many
 SELECT
-    *
+    c.*,
+    coalesce(
+        (
+            SELECT
+                json_agg(p.*)::text
+            FROM
+                phone_numbers p
+            WHERE
+                p.contact_id = c.id
+        ),
+        '[]'
+    ) AS phone_numbers,
+    count(c.*) AS total_count
 FROM
-    contacts
+    contacts c
+    LEFT JOIN phone_numbers p ON p.contact_id = c.id
 WHERE
-    owner_id = $3
+    c.owner_id = $3
+GROUP BY
+    c.id
 ORDER BY
-    created_at DESC
+    c.created_at DESC
 LIMIT
     $1 OFFSET $2;
 
@@ -340,28 +369,74 @@ ORDER BY
     c.last_contacted_at ASC nulls FIRST,
     c.created_at DESC;
 
-
 -- name: TestBulkInsertContacts :many
-INSERT INTO contacts (
-    first_name, last_name, birthdate, source, status,
-    address, city, state, zip_code, lender, price_range, timeframe, owner_id
-)
-SELECT 
-    c.first_name, c.last_name, c.birthdate, c.source, c.status,
-    c.address, c.city, c.state, c.zip_code, c.lender, c.price_range, c.timeframe, c.owner_id
-FROM jsonb_to_recordset($1::jsonb) AS c(
-    first_name text,
-    last_name text,
-    birthdate date,
-    source text,
-    status text,
-    address text,
-    city text,
-    state text,
-    zip_code text,
-    lender text,
-    price_range text,
-    timeframe text,
-    owner_id uuid
-)
-RETURNING id;
+INSERT INTO
+    contacts (
+        first_name,
+        last_name,
+        birthdate,
+        source,
+        STATUS,
+        address,
+        city,
+        state,
+        zip_code,
+        lender,
+        price_range,
+        timeframe,
+        owner_id
+    )
+SELECT
+    c.first_name,
+    c.last_name,
+    c.birthdate,
+    c.source,
+    c.status,
+    c.address,
+    c.city,
+    c.state,
+    c.zip_code,
+    c.lender,
+    c.price_range,
+    c.timeframe,
+    c.owner_id
+FROM
+    jsonb_to_recordset($1::jsonb) AS c(
+        first_name text,
+        last_name text,
+        birthdate date,
+        source text,
+        STATUS text,
+        address text,
+        city text,
+        state text,
+        zip_code text,
+        lender text,
+        price_range text,
+        timeframe text,
+        owner_id uuid
+    )
+RETURNING
+    id;
+
+-- name: UpdateContact :one
+UPDATE
+    contacts
+SET
+    first_name = $2,
+    last_name = $3,
+    birthdate = $4,
+    source = $5,
+    STATUS = $6,
+    address = $7,
+    city = $8,
+    state = $9,
+    zip_code = $10,
+    lender = $11,
+    price_range = $12,
+    timeframe = $13,
+    updated_at = NOW()
+WHERE
+    id = $1
+RETURNING
+    *;

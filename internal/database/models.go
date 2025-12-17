@@ -333,6 +333,14 @@ type Appointment struct {
 	UpdatedAt    sql.NullTime
 }
 
+type Collaborator struct {
+	ID        uuid.UUID
+	ContactID uuid.UUID
+	UserID    uuid.UUID
+	Role      string
+	CreatedAt time.Time
+}
+
 type Contact struct {
 	ID              uuid.UUID
 	FirstName       string
@@ -445,6 +453,18 @@ type Member struct {
 	UserId         uuid.UUID
 	Role           string
 	CreatedAt      time.Time
+}
+
+type Notification struct {
+	ID            uuid.UUID
+	UserID        uuid.UUID
+	Type          string
+	Message       string
+	ContactID     uuid.NullUUID
+	AppointmentID uuid.NullUUID
+	TaskID        uuid.NullUUID
+	Read          sql.NullBool
+	CreatedAt     sql.NullTime
 }
 
 type Organization struct {

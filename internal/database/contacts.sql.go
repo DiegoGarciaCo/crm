@@ -331,13 +331,28 @@ func (q *Queries) CreateContactWithDetails(ctx context.Context, arg CreateContac
 
 const getAllContacts = `-- name: GetAllContacts :many
 SELECT
-    id, first_name, last_name, birthdate, source, status, address, city, state, zip_code, lender, price_range, timeframe, owner_id, created_at, updated_at, last_contacted_at
+    c.id, c.first_name, c.last_name, c.birthdate, c.source, c.status, c.address, c.city, c.state, c.zip_code, c.lender, c.price_range, c.timeframe, c.owner_id, c.created_at, c.updated_at, c.last_contacted_at,
+    coalesce(
+        (
+            SELECT
+                json_agg(p.*)::text
+            FROM
+                phone_numbers p
+            WHERE
+                p.contact_id = c.id
+        ),
+        '[]'
+    ) AS phone_numbers,
+    count(c.*) AS total_count
 FROM
-    contacts
+    contacts c
+    LEFT JOIN phone_numbers p ON p.contact_id = c.id
 WHERE
-    owner_id = $3
+    c.owner_id = $3
+GROUP BY
+    c.id
 ORDER BY
-    created_at DESC
+    c.created_at DESC
 LIMIT
     $1 OFFSET $2
 `
@@ -348,15 +363,37 @@ type GetAllContactsParams struct {
 	OwnerID uuid.NullUUID
 }
 
-func (q *Queries) GetAllContacts(ctx context.Context, arg GetAllContactsParams) ([]Contact, error) {
+type GetAllContactsRow struct {
+	ID              uuid.UUID
+	FirstName       string
+	LastName        string
+	Birthdate       sql.NullTime
+	Source          sql.NullString
+	Status          sql.NullString
+	Address         sql.NullString
+	City            sql.NullString
+	State           sql.NullString
+	ZipCode         sql.NullString
+	Lender          sql.NullString
+	PriceRange      sql.NullString
+	Timeframe       sql.NullString
+	OwnerID         uuid.NullUUID
+	CreatedAt       sql.NullTime
+	UpdatedAt       sql.NullTime
+	LastContactedAt sql.NullTime
+	PhoneNumbers    interface{}
+	TotalCount      int64
+}
+
+func (q *Queries) GetAllContacts(ctx context.Context, arg GetAllContactsParams) ([]GetAllContactsRow, error) {
 	rows, err := q.db.QueryContext(ctx, getAllContacts, arg.Limit, arg.Offset, arg.OwnerID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Contact
+	var items []GetAllContactsRow
 	for rows.Next() {
-		var i Contact
+		var i GetAllContactsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.FirstName,
@@ -375,6 +412,8 @@ func (q *Queries) GetAllContacts(ctx context.Context, arg GetAllContactsParams) 
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.LastContactedAt,
+			&i.PhoneNumbers,
+			&i.TotalCount,
 		); err != nil {
 			return nil, err
 		}
@@ -425,7 +464,21 @@ SELECT
                 ct.contact_id = c.id
         ),
         '[]'
-    ) AS tags
+    ) AS tags,
+    coalesce(
+        (
+            SELECT
+                json_agg(
+                    json_build_object('id', u.id, 'name', u.name, 'role', cb.role)
+                )::text
+            FROM
+                collaborators cb
+                JOIN users u ON cb.user_id = u.id
+            WHERE
+                cb.contact_id = c.id
+        ),
+        '[]'
+    ) AS collaborators
 FROM
     contacts c
 WHERE
@@ -453,6 +506,7 @@ type GetContactWithDetailsRow struct {
 	Emails          interface{}
 	PhoneNumbers    interface{}
 	Tags            interface{}
+	Collaborators   interface{}
 }
 
 func (q *Queries) GetContactWithDetails(ctx context.Context, id uuid.UUID) (GetContactWithDetailsRow, error) {
@@ -479,6 +533,7 @@ func (q *Queries) GetContactWithDetails(ctx context.Context, id uuid.UUID) (GetC
 		&i.Emails,
 		&i.PhoneNumbers,
 		&i.Tags,
+		&i.Collaborators,
 	)
 	return i, err
 }
@@ -737,29 +792,54 @@ func (q *Queries) SearchContacts(ctx context.Context, arg SearchContactsParams) 
 }
 
 const testBulkInsertContacts = `-- name: TestBulkInsertContacts :many
-INSERT INTO contacts (
-    first_name, last_name, birthdate, source, status,
-    address, city, state, zip_code, lender, price_range, timeframe, owner_id
-)
-SELECT 
-    c.first_name, c.last_name, c.birthdate, c.source, c.status,
-    c.address, c.city, c.state, c.zip_code, c.lender, c.price_range, c.timeframe, c.owner_id
-FROM jsonb_to_recordset($1::jsonb) AS c(
-    first_name text,
-    last_name text,
-    birthdate date,
-    source text,
-    status text,
-    address text,
-    city text,
-    state text,
-    zip_code text,
-    lender text,
-    price_range text,
-    timeframe text,
-    owner_id uuid
-)
-RETURNING id
+INSERT INTO
+    contacts (
+        first_name,
+        last_name,
+        birthdate,
+        source,
+        STATUS,
+        address,
+        city,
+        state,
+        zip_code,
+        lender,
+        price_range,
+        timeframe,
+        owner_id
+    )
+SELECT
+    c.first_name,
+    c.last_name,
+    c.birthdate,
+    c.source,
+    c.status,
+    c.address,
+    c.city,
+    c.state,
+    c.zip_code,
+    c.lender,
+    c.price_range,
+    c.timeframe,
+    c.owner_id
+FROM
+    jsonb_to_recordset($1::jsonb) AS c(
+        first_name text,
+        last_name text,
+        birthdate date,
+        source text,
+        STATUS text,
+        address text,
+        city text,
+        state text,
+        zip_code text,
+        lender text,
+        price_range text,
+        timeframe text,
+        owner_id uuid
+    )
+RETURNING
+    id
 `
 
 func (q *Queries) TestBulkInsertContacts(ctx context.Context, dollar_1 json.RawMessage) ([]uuid.UUID, error) {
@@ -783,4 +863,82 @@ func (q *Queries) TestBulkInsertContacts(ctx context.Context, dollar_1 json.RawM
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateContact = `-- name: UpdateContact :one
+UPDATE
+    contacts
+SET
+    first_name = $2,
+    last_name = $3,
+    birthdate = $4,
+    source = $5,
+    STATUS = $6,
+    address = $7,
+    city = $8,
+    state = $9,
+    zip_code = $10,
+    lender = $11,
+    price_range = $12,
+    timeframe = $13,
+    updated_at = NOW()
+WHERE
+    id = $1
+RETURNING
+    id, first_name, last_name, birthdate, source, status, address, city, state, zip_code, lender, price_range, timeframe, owner_id, created_at, updated_at, last_contacted_at
+`
+
+type UpdateContactParams struct {
+	ID         uuid.UUID
+	FirstName  string
+	LastName   string
+	Birthdate  sql.NullTime
+	Source     sql.NullString
+	Status     sql.NullString
+	Address    sql.NullString
+	City       sql.NullString
+	State      sql.NullString
+	ZipCode    sql.NullString
+	Lender     sql.NullString
+	PriceRange sql.NullString
+	Timeframe  sql.NullString
+}
+
+func (q *Queries) UpdateContact(ctx context.Context, arg UpdateContactParams) (Contact, error) {
+	row := q.db.QueryRowContext(ctx, updateContact,
+		arg.ID,
+		arg.FirstName,
+		arg.LastName,
+		arg.Birthdate,
+		arg.Source,
+		arg.Status,
+		arg.Address,
+		arg.City,
+		arg.State,
+		arg.ZipCode,
+		arg.Lender,
+		arg.PriceRange,
+		arg.Timeframe,
+	)
+	var i Contact
+	err := row.Scan(
+		&i.ID,
+		&i.FirstName,
+		&i.LastName,
+		&i.Birthdate,
+		&i.Source,
+		&i.Status,
+		&i.Address,
+		&i.City,
+		&i.State,
+		&i.ZipCode,
+		&i.Lender,
+		&i.PriceRange,
+		&i.Timeframe,
+		&i.OwnerID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastContactedAt,
+	)
+	return i, err
 }

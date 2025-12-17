@@ -12,7 +12,6 @@ func (cfg *apiCfg) CreateNote(w http.ResponseWriter, r *http.Request) {
 	type request struct {
 		ContactID string `json:"contact_id"`
 		Note      string `json:"note"`
-		CreatedBy string `json:"created_by"`
 	}
 
 	var req request
@@ -28,7 +27,7 @@ func (cfg *apiCfg) CreateNote(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Invalid contact ID", err)
 		return
 	}
-	createdByUUID, err := uuid.Parse(req.CreatedBy)
+	createdByUUID, err := GetUserUUID(r.Context())
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid created by ID", err)
 		return
@@ -37,7 +36,7 @@ func (cfg *apiCfg) CreateNote(w http.ResponseWriter, r *http.Request) {
 	note, err := cfg.DB.CreateNote(r.Context(), database.CreateNoteParams{
 		ContactID: uuid.NullUUID{UUID: contactUUID, Valid: req.ContactID != ""},
 		Note:      req.Note,
-		CreatedBy: uuid.NullUUID{UUID: createdByUUID, Valid: req.CreatedBy != ""},
+		CreatedBy: uuid.NullUUID{UUID: createdByUUID, Valid: createdByUUID != uuid.Nil},
 	})
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to create note", err)

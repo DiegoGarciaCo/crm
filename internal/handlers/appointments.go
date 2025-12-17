@@ -192,7 +192,7 @@ func (cfg *apiCfg) ListUpcomingAppointments(w http.ResponseWriter, r *http.Reque
 }
 
 func (cfg *apiCfg) ListAppointmentsByContactID(w http.ResponseWriter, r *http.Request) {
-	contactUUID, err := GetUUIDFromUrl("contactID", r)
+	contactUUID, err := GetUUIDFromUrl("ContactID", r)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid contact ID", err)
 		return

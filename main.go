@@ -161,6 +161,7 @@ func main() {
 	mux.HandleFunc("GET /api/contacts", cfg.GetAllContacts)
 	mux.HandleFunc("GET /api/contacts/search", cfg.SearchContacts)
 	mux.HandleFunc("GET /api/contacts/smart-list/{smartListID}", cfg.GetContactsBySmartList)
+	mux.HandleFunc("PUT /api/contacts/{contactID}", cfg.UpdateContact)
 
 	// Notes Routes
 	mux.HandleFunc("POST /api/notes", cfg.CreateNote)
@@ -197,7 +198,7 @@ func main() {
 	mux.HandleFunc("PUT /api/deals/{dealID}", cfg.UpdateDeal)
 	mux.HandleFunc("DELETE /api/deals/{dealID}", cfg.DeleteDeal)
 	mux.HandleFunc("GET /api/deals", cfg.ListDeals)
-	mux.HandleFunc("GET /api/deals/contacts/{contactID}", cfg.ListDealsByContactID)
+	mux.HandleFunc("GET /api/deals/contact/{contactID}", cfg.ListDealsByContactID)
 	mux.HandleFunc("GET /api/deals/stage/{stageID}", cfg.ListDealsByStageID)
 
 	// Goals Routes
@@ -235,8 +236,27 @@ func main() {
 	mux.HandleFunc("PUT /api/emails/{emailID}", cfg.UpdateEmailAddress)
 	mux.HandleFunc("DELETE /api/emails/{emailID}", cfg.DeleteEmailAddress)
 
+	// Phone Routes
+	mux.HandleFunc("POST /api/phone-numbers/contact/{contactID}", cfg.CreatePhoneNumber)
+	mux.HandleFunc("PUT /api/phone-numbers/{phoneNumberID}", cfg.UpdatePhoneNumber)
+	mux.HandleFunc("DELETE /api/phone-numbers/{phoneNumberID}", cfg.DeletePhoneNumber)
+
 	// S3 Routes
 	mux.HandleFunc("PUT /api/upload-profile-picture", cfg.UploadProfilePicture)
+
+	// Collaborators Routes
+	mux.HandleFunc("POST /api/collaborators", cfg.AddCollaborator)
+	mux.HandleFunc("DELETE /api/collaborators/{collaboratorID}/contact/{contactID}", cfg.RemoveCollaborator)
+
+	// Member Routes
+	mux.HandleFunc("POST /api/members/organizations", cfg.GetCollaborators)
+
+	// Notifications Routes
+	mux.HandleFunc("GET /api/notifications", cfg.GetNotifications)
+	mux.HandleFunc("POST /api/notifications", cfg.CreateNotification)
+	mux.HandleFunc("PUT /api/notifications/mark-as-read/{notificationID}", cfg.MarkNotificationAsRead)
+	mux.HandleFunc("PUT /api/notifications/read-all", cfg.MarkAllNotificationsAsRead)
+	mux.HandleFunc("DELETE /api/notifications/{notificationID}", cfg.DeleteNotification)
 
 	// ------------------------------------------------------------
 	// Wrap mux with CORS handler, middleware and start server

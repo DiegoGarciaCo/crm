@@ -2,24 +2,24 @@
 INSERT INTO
     phone_numbers (contact_id, phone_number, TYPE, is_primary)
 VALUES
-    (@contact_id, @phone_number, @TYPE, @is_primary);
+    ($1, $2, $3, $4);
 
 -- name: DeletePhoneNumber :exec
 DELETE FROM
     phone_numbers
 WHERE
-    id = @id;
+    id = $1;
 
 -- name: UpdatePhoneNumber :exec
 UPDATE
     phone_numbers
 SET
-    phone_number = @phone_number,
-    TYPE = @TYPE,
-    is_primary = @is_primary,
+    phone_number = $1,
+    TYPE = $2,
+    is_primary = $3,
     updated_at = CURRENT_TIMESTAMP
 WHERE
-    id = @id;
+    id = $4;
 
 -- name: GetPhoneNumbersByContactID :many
 SELECT

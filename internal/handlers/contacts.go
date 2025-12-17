@@ -594,3 +594,59 @@ func (cfg *apiCfg) ImportContacts(w http.ResponseWriter, r *http.Request) {
 //
 // 	respondWithJSON(w, http.StatusNoContent, nil)
 // }
+
+func (cfg *apiCfg) UpdateContact(w http.ResponseWriter, r *http.Request) {
+	contactUUID, err := GetUUIDFromUrl("contactID", r)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid contact ID", err)
+		return
+	}
+
+	type req struct {
+		FirstName  string `json:"first_name"`
+		LastName   string `json:"last_name"`
+		Birthday   string `json:"birthdate"`
+		Source     string `json:"source"`
+		Status     string `json:"status"`
+		Address    string `json:"address"`
+		City       string `json:"city"`
+		ZipCode    string `json:"zip_code"`
+		Lender     string `json:"lender"`
+		PriceRange string `json:"price_range"`
+		Timeframe  string `json:"timeframe"`
+	}
+
+	var updatedData req
+	if err := json.NewDecoder(r.Body).Decode(&updatedData); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload", err)
+		return
+	}
+
+	// Parse Birthdate
+	parsedBirthDate, err := time.Parse("2006-01-02", updatedData.Birthday)
+	if err != nil && updatedData.Birthday != "" {
+		respondWithError(w, http.StatusBadRequest, "Invalid birthdate format. Use YYYY-MM-DD.", err)
+		return
+	}
+
+	contact, err := cfg.DB.UpdateContact(r.Context(), database.UpdateContactParams{
+		ID:         contactUUID,
+		FirstName:  updatedData.FirstName,
+		LastName:   updatedData.LastName,
+		Birthdate:  sql.NullTime{Time: parsedBirthDate, Valid: updatedData.Birthday != ""},
+		Source:     sql.NullString{String: updatedData.Source, Valid: updatedData.Source != ""},
+		Status:     sql.NullString{String: updatedData.Status, Valid: updatedData.Status != ""},
+		Address:    sql.NullString{String: updatedData.Address, Valid: updatedData.Address != ""},
+		City:       sql.NullString{String: updatedData.City, Valid: updatedData.City != ""},
+		ZipCode:    sql.NullString{String: updatedData.ZipCode, Valid: updatedData.ZipCode != ""},
+		Lender:     sql.NullString{String: updatedData.Lender, Valid: updatedData.Lender != ""},
+		PriceRange: sql.NullString{String: updatedData.PriceRange, Valid: updatedData.PriceRange != ""},
+		Timeframe:  sql.NullString{String: updatedData.Timeframe, Valid: updatedData.Timeframe != ""},
+	})
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not update Contact", err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusNoContent, contact)
+}
