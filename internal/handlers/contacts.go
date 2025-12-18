@@ -215,6 +215,13 @@ func (cfg *apiCfg) GetContactsBySmartList(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// Get User UUID from context
+	userUUID, err := GetUserUUID(r.Context())
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "No User ID in Context", err)
+		return
+	}
+
 	// Get Limit and Offset from URL query parameters
 	limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
 	if err != nil || limit <= 0 {
@@ -229,6 +236,10 @@ func (cfg *apiCfg) GetContactsBySmartList(w http.ResponseWriter, r *http.Request
 		ID:     smartListUUID,
 		Limit:  int32(limit),
 		Offset: int32(offset),
+		OwnerID: uuid.NullUUID{
+			UUID:  userUUID,
+			Valid: true,
+		},
 	})
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to get contacts by smart list", err)

@@ -138,14 +138,22 @@ SELECT
         ),
         '[]'
     ) AS phone_numbers,
-    count(c.*) AS total_count
+    count(*) over () AS total_count
 FROM
     contacts c
-    LEFT JOIN phone_numbers p ON p.contact_id = c.id
 WHERE
+    -- user owns the contact
     c.owner_id = $3
-GROUP BY
-    c.id
+    -- OR user is a collaborator on the contact
+    OR EXISTS (
+        SELECT
+            1
+        FROM
+            collaborators col
+        WHERE
+            col.contact_id = c.id
+            AND col.user_id = $3
+    )
 ORDER BY
     c.created_at DESC
 LIMIT
@@ -267,7 +275,7 @@ SELECT
     c.last_contacted_at,
     c.created_at,
     c.updated_at,
-    count(c.*) AS total_count
+    count(*) over () AS total_count
 FROM
     contacts c
     LEFT JOIN contact_tags ct ON ct.contact_id = c.id
@@ -275,6 +283,19 @@ FROM
     JOIN smart_lists s ON s.id = $1
 WHERE
     (
+        c.owner_id = $4
+        OR EXISTS (
+            SELECT
+                1
+            FROM
+                collaborators col
+            WHERE
+                col.contact_id = c.id
+                AND col.user_id = $4
+        )
+    )
+    -- 🔽 ALL YOUR EXISTING FILTERS 🔽
+    AND (
         coalesce(s.filter_criteria, '{}'::jsonb) ->> 'first_name' IS NULL
         OR c.first_name ilike '%' || (
             coalesce(s.filter_criteria, '{}'::jsonb) ->> 'first_name'
