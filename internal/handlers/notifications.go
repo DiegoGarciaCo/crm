@@ -51,6 +51,11 @@ func (cfg *apiCfg) GetNotifications(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Failed to fetch notifications", err)
 		return
 	}
+	if notifications == nil {
+		notifications = []database.Notification{}
+		respondWithJSON(w, http.StatusOK, notifications)
+		return
+	}
 
 	// Respond with the notifications
 	respondWithJSON(w, http.StatusOK, notifications)

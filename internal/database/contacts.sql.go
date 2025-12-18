@@ -556,7 +556,8 @@ SELECT
     c.owner_id,
     c.last_contacted_at,
     c.created_at,
-    c.updated_at
+    c.updated_at,
+    count(c.*) AS total_count
 FROM
     contacts c
     LEFT JOIN contact_tags ct ON ct.contact_id = c.id
@@ -658,7 +659,15 @@ WHERE
 ORDER BY
     c.last_contacted_at ASC nulls FIRST,
     c.created_at DESC
+LIMIT
+    $2 OFFSET $3
 `
+
+type GetContactsBySmartListParams struct {
+	ID     uuid.UUID
+	Limit  int32
+	Offset int32
+}
 
 type GetContactsBySmartListRow struct {
 	ID              uuid.UUID
@@ -678,10 +687,11 @@ type GetContactsBySmartListRow struct {
 	LastContactedAt sql.NullTime
 	CreatedAt       sql.NullTime
 	UpdatedAt       sql.NullTime
+	TotalCount      int64
 }
 
-func (q *Queries) GetContactsBySmartList(ctx context.Context, id uuid.UUID) ([]GetContactsBySmartListRow, error) {
-	rows, err := q.db.QueryContext(ctx, getContactsBySmartList, id)
+func (q *Queries) GetContactsBySmartList(ctx context.Context, arg GetContactsBySmartListParams) ([]GetContactsBySmartListRow, error) {
+	rows, err := q.db.QueryContext(ctx, getContactsBySmartList, arg.ID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -707,6 +717,7 @@ func (q *Queries) GetContactsBySmartList(ctx context.Context, id uuid.UUID) ([]G
 			&i.LastContactedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.TotalCount,
 		); err != nil {
 			return nil, err
 		}

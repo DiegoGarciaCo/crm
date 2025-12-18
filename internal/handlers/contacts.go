@@ -172,6 +172,12 @@ func (cfg *apiCfg) GetAllContacts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(contacts) == 0 {
+		contacts = []database.GetAllContactsRow{}
+		respondWithJSON(w, http.StatusOK, contacts)
+		return
+	}
+
 	respondWithJSON(w, http.StatusOK, contacts)
 }
 
@@ -209,13 +215,32 @@ func (cfg *apiCfg) GetContactsBySmartList(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	contacts, err := cfg.DB.GetContactsBySmartList(r.Context(), smartListUUID)
+	// Get Limit and Offset from URL query parameters
+	limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+	if err != nil || limit <= 0 {
+		limit = 50
+	}
+	offset, err := strconv.Atoi(r.URL.Query().Get("offset"))
+	if err != nil || offset < 0 {
+		offset = 0
+	}
+
+	contacts, err := cfg.DB.GetContactsBySmartList(r.Context(), database.GetContactsBySmartListParams{
+		ID:     smartListUUID,
+		Limit:  int32(limit),
+		Offset: int32(offset),
+	})
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to get contacts by smart list", err)
 		return
 	}
 
-	cfg.logger.Info("Retrieved contacts for smart list", "count", len(contacts))
+	if len(contacts) == 0 {
+		contacts = []database.GetContactsBySmartListRow{}
+		respondWithJSON(w, http.StatusOK, contacts)
+		return
+	}
+
 	respondWithJSON(w, http.StatusOK, contacts)
 }
 

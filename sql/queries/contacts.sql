@@ -266,7 +266,8 @@ SELECT
     c.owner_id,
     c.last_contacted_at,
     c.created_at,
-    c.updated_at
+    c.updated_at,
+    count(c.*) AS total_count
 FROM
     contacts c
     LEFT JOIN contact_tags ct ON ct.contact_id = c.id
@@ -367,7 +368,9 @@ WHERE
     )
 ORDER BY
     c.last_contacted_at ASC nulls FIRST,
-    c.created_at DESC;
+    c.created_at DESC
+LIMIT
+    $2 OFFSET $3;
 
 -- name: TestBulkInsertContacts :many
 INSERT INTO
