@@ -38,6 +38,8 @@ func (cfg *apiCfg) GetCollaborators(w http.ResponseWriter, r *http.Request) {
 		collaborators = append(collaborators, collaborators...)
 	}
 
+	cfg.logger.Info("collaborators fetched", "collaborators", collaborators)
+
 	if len(collaborators) == 0 {
 		emptyList := []database.Collaborator{}
 		respondWithJSON(w, http.StatusOK, emptyList)
