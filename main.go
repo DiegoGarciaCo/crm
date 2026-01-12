@@ -162,6 +162,8 @@ func main() {
 	mux.HandleFunc("GET /api/contacts/search", cfg.SearchContacts)
 	mux.HandleFunc("GET /api/contacts/smart-list/{smartListID}", cfg.GetContactsBySmartList)
 	mux.HandleFunc("PUT /api/contacts/{contactID}", cfg.UpdateContact)
+	mux.HandleFunc("DELETE /api/contacts/{contactID}", cfg.DeleteContact)
+	mux.HandleFunc("DELETE /api/contacts", cfg.DeleteMultipleContacts)
 
 	// Notes Routes
 	mux.HandleFunc("POST /api/notes", cfg.CreateNote)

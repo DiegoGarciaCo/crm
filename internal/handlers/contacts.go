@@ -686,3 +686,49 @@ func (cfg *apiCfg) UpdateContact(w http.ResponseWriter, r *http.Request) {
 
 	respondWithJSON(w, http.StatusNoContent, contact)
 }
+
+func (cfg *apiCfg) DeleteContact(w http.ResponseWriter, r *http.Request) {
+	contactUUID, err := GetUUIDFromUrl("contactID", r)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid contact ID", err)
+		return
+	}
+
+	err = cfg.DB.DeleteContact(r.Context(), contactUUID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not delete Contact", err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusNoContent, nil)
+}
+
+func (cfg *apiCfg) DeleteMultipleContacts(w http.ResponseWriter, r *http.Request) {
+	type req struct {
+		ContactIDs []string `json:"contact_ids"`
+	}
+
+	var deleteReq req
+	if err := json.NewDecoder(r.Body).Decode(&deleteReq); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload", err)
+		return
+	}
+
+	var contactUUIDs []uuid.UUID
+	for _, idStr := range deleteReq.ContactIDs {
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Invalid contact ID: "+idStr, err)
+			return
+		}
+		contactUUIDs = append(contactUUIDs, id)
+	}
+
+	err := cfg.DB.DeleteMultipleContacts(r.Context(), contactUUIDs)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not delete contacts", err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusNoContent, nil)
+}

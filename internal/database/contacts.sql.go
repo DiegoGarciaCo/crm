@@ -329,6 +329,30 @@ func (q *Queries) CreateContactWithDetails(ctx context.Context, arg CreateContac
 	return id, err
 }
 
+const deleteContact = `-- name: DeleteContact :exec
+DELETE FROM
+    contacts
+WHERE
+    id = $1
+`
+
+func (q *Queries) DeleteContact(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteContact, id)
+	return err
+}
+
+const deleteMultipleContacts = `-- name: DeleteMultipleContacts :exec
+DELETE FROM
+    contacts
+WHERE
+    id = any($1::uuid [])
+`
+
+func (q *Queries) DeleteMultipleContacts(ctx context.Context, dollar_1 []uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteMultipleContacts, pq.Array(dollar_1))
+	return err
+}
+
 const getAllContacts = `-- name: GetAllContacts :many
 SELECT
     c.id, c.first_name, c.last_name, c.birthdate, c.source, c.status, c.address, c.city, c.state, c.zip_code, c.lender, c.price_range, c.timeframe, c.owner_id, c.created_at, c.updated_at, c.last_contacted_at,

@@ -464,3 +464,15 @@ WHERE
     id = $1
 RETURNING
     *;
+
+-- name: DeleteMultipleContacts :exec
+DELETE FROM
+    contacts
+WHERE
+    id = any($1::uuid []);
+
+-- name: DeleteContact :exec
+DELETE FROM
+    contacts
+WHERE
+    id = $1;
