@@ -1,9 +1,11 @@
 -- name: GetOrganizationMembers :many
 SELECT
-    id,
-    "userId",
-    role
+    m.id,
+    m."userId",
+    u.name,
+    m.role
 FROM
-    member
+    member m
+    JOIN users u ON u.id = m."userId"
 WHERE
-    "organizationId" = $1;
+    m."organizationId" = $1;

@@ -49,7 +49,7 @@ func GetUUIDFromUrl(pathValue string, r *http.Request) (uuid.UUID, error) {
 func (cfg *apiCfg) GenerateEmailToken(email string) (string, error) {
 	claims := jwt.MapClaims{
 		"email": email,
-		"exp":   time.Now().Add(30 * time.Minute).Unix(),
+		"exp":   time.Now().Add(7 * 24 * time.Hour).Unix(),
 		"typ":   "email_verification",
 	}
 

@@ -100,5 +100,13 @@ func (cfg *apiCfg) CollectLandingPageForm(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Form data collected successfully"})
+	respondWithJSON(w, http.StatusOK, struct {
+		Success              bool   `json:"success"`
+		RequiresVerification bool   `json:"requiresVerification"`
+		Email                string `json:"email"`
+	}{
+		Success:              true,
+		RequiresVerification: true,
+		Email:                form.Email,
+	})
 }

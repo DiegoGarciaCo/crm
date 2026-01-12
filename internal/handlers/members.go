@@ -18,8 +18,9 @@ func (cfg *apiCfg) GetCollaborators(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Invalid request payload", err)
 		return
 	}
+	cfg.logger.Info("organization IDs received", "org_ids", request.OrgIDs)
 
-	var collaborators []database.Collaborator
+	var collaborators []database.GetOrganizationMembersRow
 	// Fetch collaborators based on organization IDs
 	for _, orgID := range request.OrgIDs {
 		// parse orgID if necessary
@@ -29,13 +30,13 @@ func (cfg *apiCfg) GetCollaborators(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		collaborators, err := cfg.DB.GetOrganizationMembers(r.Context(), orgUUID)
+		fetchedCollaborators, err := cfg.DB.GetOrganizationMembers(r.Context(), orgUUID)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Failed to fetch collaborators", err)
 			return
 		}
 		// Append or process collaborators as needed
-		collaborators = append(collaborators, collaborators...)
+		collaborators = append(fetchedCollaborators, collaborators...)
 	}
 
 	cfg.logger.Info("collaborators fetched", "collaborators", collaborators)

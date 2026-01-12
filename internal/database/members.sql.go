@@ -13,18 +13,21 @@ import (
 
 const getOrganizationMembers = `-- name: GetOrganizationMembers :many
 SELECT
-    id,
-    "userId",
-    role
+    m.id,
+    m."userId",
+    u.name,
+    m.role
 FROM
-    member
+    member m
+    JOIN users u ON u.id = m."userId"
 WHERE
-    "organizationId" = $1
+    m."organizationId" = $1
 `
 
 type GetOrganizationMembersRow struct {
 	ID     uuid.UUID
 	UserId uuid.UUID
+	Name   string
 	Role   string
 }
 
@@ -37,7 +40,12 @@ func (q *Queries) GetOrganizationMembers(ctx context.Context, organizationid uui
 	var items []GetOrganizationMembersRow
 	for rows.Next() {
 		var i GetOrganizationMembersRow
-		if err := rows.Scan(&i.ID, &i.UserId, &i.Role); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserId,
+			&i.Name,
+			&i.Role,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
