@@ -264,9 +264,10 @@ func (cfg *apiCfg) UpdateDeal(w http.ResponseWriter, r *http.Request) {
 	var finalWalkthroughDate time.Time
 	var possessionDate time.Time
 	var closedDate time.Time
+	timeLayout := "2006-01-02"
 
 	if req.ClosedDate != "" {
-		date, err := time.Parse(time.RFC3339, req.ClosedDate)
+		date, err := time.Parse(timeLayout, req.ClosedDate)
 		if err != nil {
 			respondWithError(w, http.StatusBadRequest, "Invalid closed_date format", err)
 			return
@@ -276,7 +277,7 @@ func (cfg *apiCfg) UpdateDeal(w http.ResponseWriter, r *http.Request) {
 
 	// Convert dates from string to sql.NullTime
 	if req.ClosingDate != "" {
-		date, err := time.Parse(time.RFC3339, req.ClosingDate)
+		date, err := time.Parse(timeLayout, req.ClosingDate)
 		if err != nil {
 			respondWithError(w, http.StatusBadRequest, "Invalid closing_date format", err)
 			return
@@ -286,7 +287,7 @@ func (cfg *apiCfg) UpdateDeal(w http.ResponseWriter, r *http.Request) {
 
 	if req.EarnestMoneyDueDate != "" {
 
-		date, err := time.Parse(time.RFC3339, req.EarnestMoneyDueDate)
+		date, err := time.Parse(timeLayout, req.EarnestMoneyDueDate)
 		if err != nil {
 			respondWithError(w, http.StatusBadRequest, "Invalid earnest_money_due_date format", err)
 			return
@@ -296,7 +297,7 @@ func (cfg *apiCfg) UpdateDeal(w http.ResponseWriter, r *http.Request) {
 
 	if req.MutualAcceptanceDate != "" {
 
-		date, err := time.Parse(time.RFC3339, req.MutualAcceptanceDate)
+		date, err := time.Parse(timeLayout, req.MutualAcceptanceDate)
 		if err != nil {
 			respondWithError(w, http.StatusBadRequest, "Invalid mutual_acceptance_date format", err)
 			return
@@ -306,7 +307,7 @@ func (cfg *apiCfg) UpdateDeal(w http.ResponseWriter, r *http.Request) {
 
 	if req.InspectionDate != "" {
 
-		date, err := time.Parse(time.RFC3339, req.InspectionDate)
+		date, err := time.Parse(timeLayout, req.InspectionDate)
 		if err != nil {
 			respondWithError(w, http.StatusBadRequest, "Invalid inspection_date format", err)
 			return
@@ -315,7 +316,7 @@ func (cfg *apiCfg) UpdateDeal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.AppraisalDate != "" {
-		date, err := time.Parse(time.RFC3339, req.AppraisalDate)
+		date, err := time.Parse(timeLayout, req.AppraisalDate)
 		if err != nil {
 			respondWithError(w, http.StatusBadRequest, "Invalid appraisal_date format", err)
 			return
@@ -324,7 +325,7 @@ func (cfg *apiCfg) UpdateDeal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.FinalWalkthroughDate != "" {
-		date, err := time.Parse(time.RFC3339, req.FinalWalkthroughDate)
+		date, err := time.Parse(timeLayout, req.FinalWalkthroughDate)
 		if err != nil {
 			respondWithError(w, http.StatusBadRequest, "Invalid final_walkthrough_date format", err)
 			return
@@ -333,7 +334,7 @@ func (cfg *apiCfg) UpdateDeal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.PossessionDate != "" {
-		date, err := time.Parse(time.RFC3339, req.PossessionDate)
+		date, err := time.Parse(timeLayout, req.PossessionDate)
 		if err != nil {
 			respondWithError(w, http.StatusBadRequest, "Invalid possession_date format", err)
 			return

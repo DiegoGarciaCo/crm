@@ -204,6 +204,12 @@ func (cfg *apiCfg) SearchContacts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(contacts) == 0 {
+		contacts = []database.Contact{}
+		respondWithJSON(w, http.StatusOK, contacts)
+		return
+	}
+
 	respondWithJSON(w, http.StatusOK, contacts)
 }
 

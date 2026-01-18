@@ -42,7 +42,7 @@ func (cfg *apiCfg) CreateAppointment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse ScheduledAt to time.Time
-	scheduledAt, err := time.Parse("2006-01-02T15:04", req.ScheduledAt)
+	scheduledAt, err := time.Parse(time.RFC3339, req.ScheduledAt)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid scheduled at format", err)
 		return
@@ -99,7 +99,7 @@ func (cfg *apiCfg) UpdateAppointment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	appointmentUUID, err := GetUUIDFromUrl("appointmentID", r)
+	appointmentUUID, err := GetUUIDFromUrl("AppointmentID", r)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid appointment ID", err)
 		return
@@ -131,7 +131,7 @@ func (cfg *apiCfg) UpdateAppointment(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiCfg) DeleteAppointment(w http.ResponseWriter, r *http.Request) {
-	appointmentUUID, err := GetUUIDFromUrl("appointmentID", r)
+	appointmentUUID, err := GetUUIDFromUrl("AppointmentID", r)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid appointment ID", err)
 		return

@@ -42,11 +42,18 @@ func (cfg *apiCfg) CreateTask(w http.ResponseWriter, r *http.Request) {
 
 	// Parse date string to time.Time
 	var parsedDate time.Time
+
 	if req.Date != "" {
-		parsedDate, err = time.Parse("2006-01-02T15:04", req.Date)
+		// Try RFC3339 first (full datetime)
+		parsedDate, err = time.Parse(time.RFC3339, req.Date)
 		if err != nil {
-			respondWithError(w, http.StatusBadRequest, "Invalid date format", err)
-			return
+			// If that fails, try date-only layout
+			const dateOnlyLayout = "2006-01-02"
+			parsedDate, err = time.Parse(dateOnlyLayout, req.Date)
+			if err != nil {
+				respondWithError(w, http.StatusBadRequest, "Invalid date format, expected RFC3339 or YYYY-MM-DD", err)
+				return
+			}
 		}
 	}
 
