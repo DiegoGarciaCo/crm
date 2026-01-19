@@ -275,14 +275,31 @@ SELECT
     c.last_contacted_at,
     c.created_at,
     c.updated_at,
+    -- Include all tags as JSON array
+    coalesce(
+        (
+            SELECT
+                json_agg(
+                    t.*
+                    ORDER BY
+                        t.name
+                )
+            FROM
+                contact_tags ct
+                JOIN tags t ON t.id = ct.tag_id
+            WHERE
+                ct.contact_id = c.id
+        ),
+        '[]'
+    ) AS tags,
     count(*) over () AS total_count
 FROM
     contacts c
-    LEFT JOIN contact_tags ct ON ct.contact_id = c.id
-    LEFT JOIN tags t ON t.id = ct.tag_id
-    JOIN smart_lists s ON s.id = $1
+    CROSS JOIN smart_lists s
 WHERE
-    (
+    s.id = $1
+    -- ownership / collaboration
+    AND (
         c.owner_id = $4
         OR EXISTS (
             SELECT
@@ -294,93 +311,117 @@ WHERE
                 AND col.user_id = $4
         )
     )
-    -- 🔽 ALL YOUR EXISTING FILTERS 🔽
+    -- first_name
     AND (
         coalesce(s.filter_criteria, '{}'::jsonb) ->> 'first_name' IS NULL
         OR c.first_name ilike '%' || (
             coalesce(s.filter_criteria, '{}'::jsonb) ->> 'first_name'
         ) || '%'
     )
+    -- last_name
     AND (
         coalesce(s.filter_criteria, '{}'::jsonb) ->> 'last_name' IS NULL
         OR c.last_name ilike '%' || (
             coalesce(s.filter_criteria, '{}'::jsonb) ->> 'last_name'
         ) || '%'
     )
+    -- birthdate
     AND (
         coalesce(s.filter_criteria, '{}'::jsonb) ->> 'birthdate' IS NULL
         OR c.birthdate = (
             coalesce(s.filter_criteria, '{}'::jsonb) ->> 'birthdate'
         )::date
     )
+    -- source
     AND (
         coalesce(s.filter_criteria, '{}'::jsonb) ->> 'source' IS NULL
         OR c.source ilike '%' || (
             coalesce(s.filter_criteria, '{}'::jsonb) ->> 'source'
         ) || '%'
     )
+    -- status
     AND (
         coalesce(s.filter_criteria, '{}'::jsonb) ->> 'status' IS NULL
         OR c.status = (
             coalesce(s.filter_criteria, '{}'::jsonb) ->> 'status'
         )
     )
+    -- address
     AND (
         coalesce(s.filter_criteria, '{}'::jsonb) ->> 'address' IS NULL
         OR c.address ilike '%' || (
             coalesce(s.filter_criteria, '{}'::jsonb) ->> 'address'
         ) || '%'
     )
+    -- city
     AND (
         coalesce(s.filter_criteria, '{}'::jsonb) ->> 'city' IS NULL
         OR c.city ilike '%' || (
             coalesce(s.filter_criteria, '{}'::jsonb) ->> 'city'
         ) || '%'
     )
+    -- state
     AND (
         coalesce(s.filter_criteria, '{}'::jsonb) ->> 'state' IS NULL
         OR c.state ilike '%' || (
             coalesce(s.filter_criteria, '{}'::jsonb) ->> 'state'
         ) || '%'
     )
+    -- zip_code
     AND (
         coalesce(s.filter_criteria, '{}'::jsonb) ->> 'zip_code' IS NULL
         OR c.zip_code = (
             coalesce(s.filter_criteria, '{}'::jsonb) ->> 'zip_code'
         )
     )
+    -- lender
     AND (
         coalesce(s.filter_criteria, '{}'::jsonb) ->> 'lender' IS NULL
         OR c.lender ilike '%' || (
             coalesce(s.filter_criteria, '{}'::jsonb) ->> 'lender'
         ) || '%'
     )
+    -- price_range
     AND (
         coalesce(s.filter_criteria, '{}'::jsonb) ->> 'price_range' IS NULL
         OR c.price_range = (
             coalesce(s.filter_criteria, '{}'::jsonb) ->> 'price_range'
         )
     )
+    -- timeframe
     AND (
         coalesce(s.filter_criteria, '{}'::jsonb) ->> 'timeframe' IS NULL
         OR c.timeframe = (
             coalesce(s.filter_criteria, '{}'::jsonb) ->> 'timeframe'
         )
     )
+    -- owner_id override
     AND (
         coalesce(s.filter_criteria, '{}'::jsonb) ->> 'owner_id' IS NULL
         OR c.owner_id = (
             coalesce(s.filter_criteria, '{}'::jsonb) ->> 'owner_id'
         )::uuid
     )
+    -- contact has all required tags
     AND (
-        coalesce(s.filter_criteria, '{}'::jsonb) ->> 'tag_id' IS NULL
-        OR t.id = (
-            coalesce(s.filter_criteria, '{}'::jsonb) ->> 'tag_id'
-        )::uuid
+        coalesce(s.filter_criteria, '{}'::jsonb) -> 'tag_ids' IS NULL
+        OR (
+            SELECT
+                count(DISTINCT required_tag)
+            FROM
+                jsonb_array_elements_text(
+                    coalesce(s.filter_criteria, '{}'::jsonb) -> 'tag_ids'
+                ) AS required(required_tag)
+                JOIN contact_tags ct2 ON ct2.tag_id = required.required_tag::uuid
+                AND ct2.contact_id = c.id
+        ) = jsonb_array_length(
+            coalesce(s.filter_criteria, '{}'::jsonb) -> 'tag_ids'
+        )
     )
+    -- last_contacted_days
     AND (
         coalesce(s.filter_criteria, '{}'::jsonb) ->> 'last_contacted_days' IS NULL
+        OR c.last_contacted_at IS NULL
         OR c.last_contacted_at <= NOW() - (
             (
                 coalesce(s.filter_criteria, '{}'::jsonb) ->> 'last_contacted_days'

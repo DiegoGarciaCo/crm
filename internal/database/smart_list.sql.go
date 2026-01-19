@@ -87,6 +87,194 @@ func (q *Queries) GetAllSmartLists(ctx context.Context, userID uuid.NullUUID) ([
 	return items, nil
 }
 
+const getAllSmartListsWithCounts = `-- name: GetAllSmartListsWithCounts :many
+SELECT
+    s.id, s.name, s.description, s.user_id, s.filter_criteria, s.created_at, s.updated_at,
+    count(c.id) filter (
+        WHERE
+            -- first_name
+            (
+                coalesce(s.filter_criteria, '{}'::jsonb) ->> 'first_name' IS NULL
+                OR c.first_name ilike '%' || (
+                    coalesce(s.filter_criteria, '{}'::jsonb) ->> 'first_name'
+                ) || '%'
+            )
+            -- last_name
+            AND (
+                coalesce(s.filter_criteria, '{}'::jsonb) ->> 'last_name' IS NULL
+                OR c.last_name ilike '%' || (
+                    coalesce(s.filter_criteria, '{}'::jsonb) ->> 'last_name'
+                ) || '%'
+            )
+            -- birthdate
+            AND (
+                coalesce(s.filter_criteria, '{}'::jsonb) ->> 'birthdate' IS NULL
+                OR c.birthdate = (
+                    coalesce(s.filter_criteria, '{}'::jsonb) ->> 'birthdate'
+                )::date
+            )
+            -- source
+            AND (
+                coalesce(s.filter_criteria, '{}'::jsonb) ->> 'source' IS NULL
+                OR c.source ilike '%' || (
+                    coalesce(s.filter_criteria, '{}'::jsonb) ->> 'source'
+                ) || '%'
+            )
+            -- status
+            AND (
+                coalesce(s.filter_criteria, '{}'::jsonb) ->> 'status' IS NULL
+                OR c.status = (
+                    coalesce(s.filter_criteria, '{}'::jsonb) ->> 'status'
+                )
+            )
+            -- address
+            AND (
+                coalesce(s.filter_criteria, '{}'::jsonb) ->> 'address' IS NULL
+                OR c.address ilike '%' || (
+                    coalesce(s.filter_criteria, '{}'::jsonb) ->> 'address'
+                ) || '%'
+            )
+            -- city
+            AND (
+                coalesce(s.filter_criteria, '{}'::jsonb) ->> 'city' IS NULL
+                OR c.city ilike '%' || (
+                    coalesce(s.filter_criteria, '{}'::jsonb) ->> 'city'
+                ) || '%'
+            )
+            -- state
+            AND (
+                coalesce(s.filter_criteria, '{}'::jsonb) ->> 'state' IS NULL
+                OR c.state ilike '%' || (
+                    coalesce(s.filter_criteria, '{}'::jsonb) ->> 'state'
+                ) || '%'
+            )
+            -- zip_code
+            AND (
+                coalesce(s.filter_criteria, '{}'::jsonb) ->> 'zip_code' IS NULL
+                OR c.zip_code = (
+                    coalesce(s.filter_criteria, '{}'::jsonb) ->> 'zip_code'
+                )
+            )
+            -- lender
+            AND (
+                coalesce(s.filter_criteria, '{}'::jsonb) ->> 'lender' IS NULL
+                OR c.lender ilike '%' || (
+                    coalesce(s.filter_criteria, '{}'::jsonb) ->> 'lender'
+                ) || '%'
+            )
+            -- price_range
+            AND (
+                coalesce(s.filter_criteria, '{}'::jsonb) ->> 'price_range' IS NULL
+                OR c.price_range = (
+                    coalesce(s.filter_criteria, '{}'::jsonb) ->> 'price_range'
+                )
+            )
+            -- timeframe
+            AND (
+                coalesce(s.filter_criteria, '{}'::jsonb) ->> 'timeframe' IS NULL
+                OR c.timeframe = (
+                    coalesce(s.filter_criteria, '{}'::jsonb) ->> 'timeframe'
+                )
+            )
+            -- owner_id
+            AND (
+                coalesce(s.filter_criteria, '{}'::jsonb) ->> 'owner_id' IS NULL
+                OR c.owner_id = (
+                    coalesce(s.filter_criteria, '{}'::jsonb) ->> 'owner_id'
+                )::uuid
+            )
+            -- contact has all required tags
+            AND (
+                coalesce(s.filter_criteria, '{}'::jsonb) -> 'tag_ids' IS NULL
+                OR (
+                    SELECT
+                        count(DISTINCT required_tag)
+                    FROM
+                        jsonb_array_elements_text(
+                            coalesce(s.filter_criteria, '{}'::jsonb) -> 'tag_ids'
+                        ) AS required(required_tag)
+                        JOIN contact_tags ct2 ON ct2.tag_id = required.required_tag::uuid
+                        AND ct2.contact_id = c.id
+                ) = jsonb_array_length(
+                    coalesce(s.filter_criteria, '{}'::jsonb) -> 'tag_ids'
+                )
+            )
+            -- last_contacted_days
+            AND (
+                coalesce(s.filter_criteria, '{}'::jsonb) ->> 'last_contacted_days' IS NULL
+                OR c.last_contacted_at IS NULL
+                OR c.last_contacted_at <= NOW() - (
+                    (
+                        coalesce(s.filter_criteria, '{}'::jsonb) ->> 'last_contacted_days'
+                    ) || ' days'
+                )::INTERVAL
+            )
+    ) AS contact_count
+FROM
+    smart_lists s
+    LEFT JOIN contacts c ON (
+        c.owner_id = s.user_id
+        OR EXISTS (
+            SELECT
+                1
+            FROM
+                collaborators col
+            WHERE
+                col.contact_id = c.id
+                AND col.user_id = s.user_id
+        )
+    )
+WHERE
+    s.user_id = $1
+GROUP BY
+    s.id
+ORDER BY
+    s.created_at DESC
+`
+
+type GetAllSmartListsWithCountsRow struct {
+	ID             uuid.UUID
+	Name           string
+	Description    sql.NullString
+	UserID         uuid.NullUUID
+	FilterCriteria pqtype.NullRawMessage
+	CreatedAt      sql.NullTime
+	UpdatedAt      sql.NullTime
+	ContactCount   int64
+}
+
+func (q *Queries) GetAllSmartListsWithCounts(ctx context.Context, userID uuid.NullUUID) ([]GetAllSmartListsWithCountsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAllSmartListsWithCounts, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAllSmartListsWithCountsRow
+	for rows.Next() {
+		var i GetAllSmartListsWithCountsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.UserID,
+			&i.FilterCriteria,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ContactCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setSmartListFilterCriteria = `-- name: SetSmartListFilterCriteria :one
 UPDATE
     smart_lists

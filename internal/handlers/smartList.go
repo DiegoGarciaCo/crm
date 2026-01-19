@@ -18,7 +18,7 @@ func (cfg *apiCfg) GetAllSmartLists(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	smartList, err := cfg.DB.GetAllSmartLists(r.Context(), uuid.NullUUID{UUID: userUUID, Valid: true})
+	smartList, err := cfg.DB.GetAllSmartListsWithCounts(r.Context(), uuid.NullUUID{UUID: userUUID, Valid: true})
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to get smart lists", err)
 		return
