@@ -126,3 +126,63 @@ func (cfg *apiCfg) UpdateSmartList(w http.ResponseWriter, r *http.Request) {
 
 	respondWithJSON(w, http.StatusOK, smartList)
 }
+
+func (cfg *apiCfg) ReorderSmartLists(w http.ResponseWriter, r *http.Request) {
+	// Get userID from Context
+	userUUID, err := GetUserUUID(r.Context())
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Invalid user ID", err)
+		return
+	}
+
+	// Parse reques body
+	var smartlists []database.SmartList
+	err = json.NewDecoder(r.Body).Decode(&smartlists)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload", err)
+		return
+	}
+
+	// Start transaction
+	tx, err := cfg.RawDB.BeginTx(r.Context(), nil)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to start database transaction", err)
+		return
+	}
+	defer tx.Rollback()
+
+	qtx := cfg.DB.WithTx(tx)
+
+	// Prepare reorder params
+	IDs := make([]uuid.UUID, len(smartlists))
+	Indexes := make([]int32, len(smartlists))
+	for i, smartlist := range smartlists {
+		IDs[i] = smartlist.ID
+		Indexes[i] = int32(smartlist.ListIndex)
+	}
+
+	// Bump Indexes by 1000 to avoid unique constraint conflicts
+	err = qtx.BumpSmartListIndexes(r.Context(), uuid.NullUUID{UUID: userUUID, Valid: true})
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to bump smart list indexes", err)
+		return
+	}
+
+	// Update order of each smart list
+	err = qtx.ReorderSmartLists(r.Context(), database.ReorderSmartListsParams{
+		Column1: IDs,
+		Column2: Indexes,
+	})
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to reorder smart lists", err)
+		return
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to commit transaction", err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Smart lists reordered successfully"})
+}

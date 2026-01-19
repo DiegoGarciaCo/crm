@@ -696,6 +696,7 @@ func (cfg *apiCfg) UpdateContact(w http.ResponseWriter, r *http.Request) {
 func (cfg *apiCfg) DeleteContact(w http.ResponseWriter, r *http.Request) {
 	contactUUID, err := GetUUIDFromUrl("contactID", r)
 	if err != nil {
+		cfg.logger.Error("DeleteContact: ", "Invalid contact ID", contactUUID)
 		respondWithError(w, http.StatusBadRequest, "Invalid contact ID", err)
 		return
 	}

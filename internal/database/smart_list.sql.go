@@ -10,8 +10,23 @@ import (
 	"database/sql"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/sqlc-dev/pqtype"
 )
+
+const bumpSmartListIndexes = `-- name: BumpSmartListIndexes :exec
+UPDATE
+    smart_lists
+SET
+    list_index = list_index + 1000
+WHERE
+    user_id = $1
+`
+
+func (q *Queries) BumpSmartListIndexes(ctx context.Context, userID uuid.NullUUID) error {
+	_, err := q.db.ExecContext(ctx, bumpSmartListIndexes, userID)
+	return err
+}
 
 const createSmartList = `-- name: CreateSmartList :one
 INSERT INTO
@@ -23,7 +38,7 @@ INSERT INTO
 VALUES
     ($1, $2, $3)
 RETURNING
-    id, name, description, user_id, filter_criteria, created_at, updated_at
+    id, name, description, user_id, filter_criteria, created_at, updated_at, list_index
 `
 
 type CreateSmartListParams struct {
@@ -43,13 +58,14 @@ func (q *Queries) CreateSmartList(ctx context.Context, arg CreateSmartListParams
 		&i.FilterCriteria,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ListIndex,
 	)
 	return i, err
 }
 
 const getAllSmartLists = `-- name: GetAllSmartLists :many
 SELECT
-    id, name, description, user_id, filter_criteria, created_at, updated_at
+    id, name, description, user_id, filter_criteria, created_at, updated_at, list_index
 FROM
     smart_lists
 WHERE
@@ -73,6 +89,7 @@ func (q *Queries) GetAllSmartLists(ctx context.Context, userID uuid.NullUUID) ([
 			&i.FilterCriteria,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ListIndex,
 		); err != nil {
 			return nil, err
 		}
@@ -89,7 +106,8 @@ func (q *Queries) GetAllSmartLists(ctx context.Context, userID uuid.NullUUID) ([
 
 const getAllSmartListsWithCounts = `-- name: GetAllSmartListsWithCounts :many
 SELECT
-    s.id, s.name, s.description, s.user_id, s.filter_criteria, s.created_at, s.updated_at,
+    s.id, s.name, s.description, s.user_id, s.filter_criteria, s.created_at, s.updated_at, s.list_index,
+    count(c.id) AS total_contacts,
     count(c.id) filter (
         WHERE
             -- first_name
@@ -229,7 +247,7 @@ WHERE
 GROUP BY
     s.id
 ORDER BY
-    s.created_at DESC
+    s.list_index ASC
 `
 
 type GetAllSmartListsWithCountsRow struct {
@@ -240,6 +258,8 @@ type GetAllSmartListsWithCountsRow struct {
 	FilterCriteria pqtype.NullRawMessage
 	CreatedAt      sql.NullTime
 	UpdatedAt      sql.NullTime
+	ListIndex      int32
+	TotalContacts  int64
 	ContactCount   int64
 }
 
@@ -260,6 +280,8 @@ func (q *Queries) GetAllSmartListsWithCounts(ctx context.Context, userID uuid.Nu
 			&i.FilterCriteria,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ListIndex,
+			&i.TotalContacts,
 			&i.ContactCount,
 		); err != nil {
 			return nil, err
@@ -275,6 +297,32 @@ func (q *Queries) GetAllSmartListsWithCounts(ctx context.Context, userID uuid.Nu
 	return items, nil
 }
 
+const reorderSmartLists = `-- name: ReorderSmartLists :exec
+UPDATE
+    smart_lists
+SET
+    list_index = data.new_index,
+    updated_at = CURRENT_TIMESTAMP
+FROM
+    (
+        SELECT
+            unnest($1::uuid []) AS id,
+            unnest($2::int []) AS new_index
+    ) AS data
+WHERE
+    smart_lists.id = data.id
+`
+
+type ReorderSmartListsParams struct {
+	Column1 []uuid.UUID
+	Column2 []int32
+}
+
+func (q *Queries) ReorderSmartLists(ctx context.Context, arg ReorderSmartListsParams) error {
+	_, err := q.db.ExecContext(ctx, reorderSmartLists, pq.Array(arg.Column1), pq.Array(arg.Column2))
+	return err
+}
+
 const setSmartListFilterCriteria = `-- name: SetSmartListFilterCriteria :one
 UPDATE
     smart_lists
@@ -284,7 +332,7 @@ SET
 WHERE
     id = $1
 RETURNING
-    id, name, description, user_id, filter_criteria, created_at, updated_at
+    id, name, description, user_id, filter_criteria, created_at, updated_at, list_index
 `
 
 type SetSmartListFilterCriteriaParams struct {
@@ -303,6 +351,7 @@ func (q *Queries) SetSmartListFilterCriteria(ctx context.Context, arg SetSmartLi
 		&i.FilterCriteria,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ListIndex,
 	)
 	return i, err
 }
@@ -318,7 +367,7 @@ SET
 WHERE
     id = $1
 RETURNING
-    id, name, description, user_id, filter_criteria, created_at, updated_at
+    id, name, description, user_id, filter_criteria, created_at, updated_at, list_index
 `
 
 type UpdateSmartListParams struct {
@@ -344,6 +393,7 @@ func (q *Queries) UpdateSmartList(ctx context.Context, arg UpdateSmartListParams
 		&i.FilterCriteria,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ListIndex,
 	)
 	return i, err
 }

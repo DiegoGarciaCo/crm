@@ -521,6 +521,7 @@ type SmartList struct {
 	FilterCriteria pqtype.NullRawMessage
 	CreatedAt      sql.NullTime
 	UpdatedAt      sql.NullTime
+	ListIndex      int32
 }
 
 type Stage struct {

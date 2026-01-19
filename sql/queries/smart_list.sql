@@ -45,6 +45,7 @@ RETURNING
 -- name: GetAllSmartListsWithCounts :many
 SELECT
     s.*,
+    count(c.id) AS total_contacts,
     count(c.id) filter (
         WHERE
             -- first_name
@@ -184,4 +185,27 @@ WHERE
 GROUP BY
     s.id
 ORDER BY
-    s.created_at DESC;
+    s.list_index ASC;
+
+-- name: ReorderSmartLists :exec
+UPDATE
+    smart_lists
+SET
+    list_index = data.new_index,
+    updated_at = CURRENT_TIMESTAMP
+FROM
+    (
+        SELECT
+            unnest($1::uuid []) AS id,
+            unnest($2::int []) AS new_index
+    ) AS data
+WHERE
+    smart_lists.id = data.id;
+
+-- name: BumpSmartListIndexes :exec
+UPDATE
+    smart_lists
+SET
+    list_index = list_index + 1000
+WHERE
+    user_id = $1;
