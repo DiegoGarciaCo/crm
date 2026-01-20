@@ -24,10 +24,12 @@ FROM
 
 -- name: GetContactLogsByContactID :many
 SELECT
-    *
+    cl.*,
+    u.name AS created_by_name
 FROM
-    contact_logs
+    contact_logs cl
+    JOIN users u ON u.id = cl.created_by
 WHERE
-    contact_id = $1
+    cl.contact_id = $1
 ORDER BY
-    created_at DESC;
+    cl.created_at DESC;

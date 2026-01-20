@@ -7,6 +7,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 )
@@ -46,24 +47,36 @@ func (q *Queries) CreateNote(ctx context.Context, arg CreateNoteParams) (Contact
 
 const getNotesByContactID = `-- name: GetNotesByContactID :many
 SELECT
-    id, contact_id, note, created_at, updated_at, created_by
+    cn.id, cn.contact_id, cn.note, cn.created_at, cn.updated_at, cn.created_by,
+    u.name AS created_by_name
 FROM
-    contact_notes
+    contact_notes cn
+    JOIN users u ON u.id = cn.created_by
 WHERE
-    contact_id = $1
+    cn.contact_id = $1
 ORDER BY
-    created_at DESC
+    cn.created_at DESC
 `
 
-func (q *Queries) GetNotesByContactID(ctx context.Context, contactID uuid.NullUUID) ([]ContactNote, error) {
+type GetNotesByContactIDRow struct {
+	ID            uuid.UUID
+	ContactID     uuid.NullUUID
+	Note          string
+	CreatedAt     sql.NullTime
+	UpdatedAt     sql.NullTime
+	CreatedBy     uuid.NullUUID
+	CreatedByName string
+}
+
+func (q *Queries) GetNotesByContactID(ctx context.Context, contactID uuid.NullUUID) ([]GetNotesByContactIDRow, error) {
 	rows, err := q.db.QueryContext(ctx, getNotesByContactID, contactID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ContactNote
+	var items []GetNotesByContactIDRow
 	for rows.Next() {
-		var i ContactNote
+		var i GetNotesByContactIDRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.ContactID,
@@ -71,6 +84,7 @@ func (q *Queries) GetNotesByContactID(ctx context.Context, contactID uuid.NullUU
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.CreatedBy,
+			&i.CreatedByName,
 		); err != nil {
 			return nil, err
 		}

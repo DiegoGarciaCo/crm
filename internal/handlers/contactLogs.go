@@ -56,6 +56,7 @@ func (cfg *apiCfg) GetContactLogsByContactID(w http.ResponseWriter, r *http.Requ
 		Note          sql.NullString
 		CreatedAt     sql.NullTime
 		UpdatedAt     sql.NullTime
+		CreatedByName string
 	}
 
 	contactUUID, err := GetUUIDFromUrl("contactID", r)
@@ -80,6 +81,7 @@ func (cfg *apiCfg) GetContactLogsByContactID(w http.ResponseWriter, r *http.Requ
 			Note:          log.Note,
 			CreatedAt:     log.CreatedAt,
 			UpdatedAt:     log.UpdatedAt,
+			CreatedByName: log.CreatedByName,
 		})
 	}
 

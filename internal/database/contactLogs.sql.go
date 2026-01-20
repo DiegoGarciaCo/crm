@@ -14,24 +14,37 @@ import (
 
 const getContactLogsByContactID = `-- name: GetContactLogsByContactID :many
 SELECT
-    id, contact_id, contact_method, created_by, note, created_at, updated_at
+    cl.id, cl.contact_id, cl.contact_method, cl.created_by, cl.note, cl.created_at, cl.updated_at,
+    u.name AS created_by_name
 FROM
-    contact_logs
+    contact_logs cl
+    JOIN users u ON u.id = cl.created_by
 WHERE
-    contact_id = $1
+    cl.contact_id = $1
 ORDER BY
-    created_at DESC
+    cl.created_at DESC
 `
 
-func (q *Queries) GetContactLogsByContactID(ctx context.Context, contactID uuid.NullUUID) ([]ContactLog, error) {
+type GetContactLogsByContactIDRow struct {
+	ID            uuid.UUID
+	ContactID     uuid.NullUUID
+	ContactMethod string
+	CreatedBy     uuid.NullUUID
+	Note          sql.NullString
+	CreatedAt     sql.NullTime
+	UpdatedAt     sql.NullTime
+	CreatedByName string
+}
+
+func (q *Queries) GetContactLogsByContactID(ctx context.Context, contactID uuid.NullUUID) ([]GetContactLogsByContactIDRow, error) {
 	rows, err := q.db.QueryContext(ctx, getContactLogsByContactID, contactID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ContactLog
+	var items []GetContactLogsByContactIDRow
 	for rows.Next() {
-		var i ContactLog
+		var i GetContactLogsByContactIDRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.ContactID,
@@ -40,6 +53,7 @@ func (q *Queries) GetContactLogsByContactID(ctx context.Context, contactID uuid.
 			&i.Note,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.CreatedByName,
 		); err != nil {
 			return nil, err
 		}

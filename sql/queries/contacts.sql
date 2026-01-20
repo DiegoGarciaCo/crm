@@ -292,6 +292,17 @@ SELECT
         ),
         '[]'
     ) AS tags,
+    coalesce(
+        (
+            SELECT
+                json_agg(p.*)::text
+            FROM
+                phone_numbers p
+            WHERE
+                p.contact_id = c.id
+        ),
+        '[]'
+    ) AS phone_numbers,
     count(*) over () AS total_count
 FROM
     contacts c
