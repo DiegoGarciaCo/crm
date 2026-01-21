@@ -16,7 +16,6 @@ UPDATE
 SET
     name = $2,
     description = $3,
-    filter_criteria = $4,
     updated_at = CURRENT_TIMESTAMP
 WHERE
     id = $1
@@ -209,3 +208,9 @@ SET
     list_index = list_index + 1000
 WHERE
     user_id = $1;
+
+-- name: DeleteSmartList :exec
+DELETE FROM
+    smart_lists
+WHERE
+    id = $1;

@@ -214,6 +214,7 @@ func main() {
 	mux.HandleFunc("PUT /api/smart-lists/{smartListID}/filter", cfg.SetSmartListFilterCriteria)
 	mux.HandleFunc("PUT /api/smart-lists/{smartListID}/name", cfg.UpdateSmartList)
 	mux.HandleFunc("PUT /api/smart-lists/reorder", cfg.ReorderSmartLists)
+	mux.HandleFunc("DELETE /api/smart-lists/{smartListID}", cfg.DeleteSmartList)
 
 	// Stages Routes
 	mux.HandleFunc("POST /api/stages", cfg.CreateStage)

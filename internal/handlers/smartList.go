@@ -102,9 +102,8 @@ func (cfg *apiCfg) UpdateSmartList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type UpdateSmartListRequest struct {
-		Name           string          `json:"name"`
-		Description    string          `json:"description"`
-		FilterCriteria json.RawMessage `json:"filter_criteria"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
 	}
 
 	var updateSmartListReq UpdateSmartListRequest
@@ -114,10 +113,9 @@ func (cfg *apiCfg) UpdateSmartList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	smartList, err := cfg.DB.UpdateSmartList(r.Context(), database.UpdateSmartListParams{
-		ID:             smartListUUID,
-		Name:           updateSmartListReq.Name,
-		Description:    sql.NullString{String: updateSmartListReq.Description, Valid: updateSmartListReq.Description != ""},
-		FilterCriteria: pqtype.NullRawMessage{RawMessage: updateSmartListReq.FilterCriteria, Valid: len(updateSmartListReq.FilterCriteria) > 0},
+		ID:          smartListUUID,
+		Name:        updateSmartListReq.Name,
+		Description: sql.NullString{String: updateSmartListReq.Description, Valid: updateSmartListReq.Description != ""},
 	})
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to update smart list", err)
@@ -185,4 +183,21 @@ func (cfg *apiCfg) ReorderSmartLists(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Smart lists reordered successfully"})
+}
+
+func (cfg *apiCfg) DeleteSmartList(w http.ResponseWriter, r *http.Request) {
+	// Get smartListID from url
+	smartListUUID, err := GetUUIDFromUrl("smartListID", r)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid smart list ID", err)
+		return
+	}
+
+	err = cfg.DB.DeleteSmartList(r.Context(), smartListUUID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to delete smart list", err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Smart list deleted successfully"})
 }

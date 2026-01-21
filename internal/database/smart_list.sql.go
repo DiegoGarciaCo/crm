@@ -63,6 +63,18 @@ func (q *Queries) CreateSmartList(ctx context.Context, arg CreateSmartListParams
 	return i, err
 }
 
+const deleteSmartList = `-- name: DeleteSmartList :exec
+DELETE FROM
+    smart_lists
+WHERE
+    id = $1
+`
+
+func (q *Queries) DeleteSmartList(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteSmartList, id)
+	return err
+}
+
 const getAllSmartLists = `-- name: GetAllSmartLists :many
 SELECT
     id, name, description, user_id, filter_criteria, created_at, updated_at, list_index
@@ -362,7 +374,6 @@ UPDATE
 SET
     name = $2,
     description = $3,
-    filter_criteria = $4,
     updated_at = CURRENT_TIMESTAMP
 WHERE
     id = $1
@@ -371,19 +382,13 @@ RETURNING
 `
 
 type UpdateSmartListParams struct {
-	ID             uuid.UUID
-	Name           string
-	Description    sql.NullString
-	FilterCriteria pqtype.NullRawMessage
+	ID          uuid.UUID
+	Name        string
+	Description sql.NullString
 }
 
 func (q *Queries) UpdateSmartList(ctx context.Context, arg UpdateSmartListParams) (SmartList, error) {
-	row := q.db.QueryRowContext(ctx, updateSmartList,
-		arg.ID,
-		arg.Name,
-		arg.Description,
-		arg.FilterCriteria,
-	)
+	row := q.db.QueryRowContext(ctx, updateSmartList, arg.ID, arg.Name, arg.Description)
 	var i SmartList
 	err := row.Scan(
 		&i.ID,
