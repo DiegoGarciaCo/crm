@@ -845,16 +845,27 @@ SELECT
 FROM
     contacts
 WHERE
-    owner_id = $1
+    (
+        owner_id = $1
+        OR EXISTS (
+            SELECT
+                1
+            FROM
+                collaborators col
+            WHERE
+                col.contact_id = contacts.id
+                AND col.user_id = $1
+        )
+    )
     AND (
-        first_name ilike $2
-        OR last_name ilike $2
-        OR concat(first_name, ' ', last_name) ilike $2
-        OR address ilike $2
-        OR city ilike $2
-        OR state ilike $2
-        OR lender ilike $2
-        OR source ilike $2
+        first_name ilike '%' || $2 || '%'
+        OR last_name ilike '%' || $2 || '%'
+        OR concat(first_name, ' ', last_name) ilike '%' || $2 || '%'
+        OR address ilike '%' || $2 || '%'
+        OR city ilike '%' || $2 || '%'
+        OR state ilike '%' || $2 || '%'
+        OR lender ilike '%' || $2 || '%'
+        OR source ilike '%' || $2 || '%'
     )
 ORDER BY
     last_name,
@@ -864,12 +875,12 @@ LIMIT
 `
 
 type SearchContactsParams struct {
-	OwnerID   uuid.NullUUID
-	FirstName string
+	OwnerID uuid.NullUUID
+	Column2 sql.NullString
 }
 
 func (q *Queries) SearchContacts(ctx context.Context, arg SearchContactsParams) ([]Contact, error) {
-	rows, err := q.db.QueryContext(ctx, searchContacts, arg.OwnerID, arg.FirstName)
+	rows, err := q.db.QueryContext(ctx, searchContacts, arg.OwnerID, arg.Column2)
 	if err != nil {
 		return nil, err
 	}

@@ -196,8 +196,8 @@ func (cfg *apiCfg) SearchContacts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	contacts, err := cfg.DB.SearchContacts(r.Context(), database.SearchContactsParams{
-		OwnerID:   uuid.NullUUID{UUID: ownerUUID, Valid: true},
-		FirstName: query,
+		OwnerID: uuid.NullUUID{UUID: ownerUUID, Valid: true},
+		Column2: sql.NullString{String: query, Valid: true},
 	})
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to search contacts", err)
