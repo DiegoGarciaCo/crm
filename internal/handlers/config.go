@@ -161,14 +161,9 @@ func (cfg *apiCfg) AuthMiddleware() func(http.Handler) http.Handler {
 				return
 			}
 
-			if strings.HasPrefix(r.URL.Path, "/webhooks/") {
-				// Get X-API-Key header
-				apiKey := r.Header.Get("X-API-Key")
-				if apiKey == "" {
-					respondWithError(w, http.StatusUnauthorized, "Missing API key", nil)
-					return
-				}
-
+			// Get X-API-Key header
+			apiKey := r.Header.Get("X-API-Key")
+			if apiKey != "" {
 				// Hash the provided API key
 				hashedKey := HashAPIKey(apiKey)
 
