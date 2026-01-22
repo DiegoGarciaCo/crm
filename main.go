@@ -262,6 +262,9 @@ func main() {
 	mux.HandleFunc("PUT /api/notifications/read-all", cfg.MarkAllNotificationsAsRead)
 	mux.HandleFunc("DELETE /api/notifications/{notificationID}", cfg.DeleteNotification)
 
+	// Zapier Routes
+	mux.HandleFunc("GET /api/me", cfg.GetUserInfo)
+
 	// ------------------------------------------------------------
 	// Wrap mux with CORS handler, middleware and start server
 	// ------------------------------------------------------------

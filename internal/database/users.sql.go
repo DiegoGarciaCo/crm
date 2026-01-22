@@ -11,66 +11,18 @@ import (
 	"github.com/google/uuid"
 )
 
-const createUser = `-- name: CreateUser :one
-INSERT INTO
-    users (username, email, password_hash)
-VALUES
-    ($1, $2, $3)
-RETURNING
-    username,
-    email
+const getUserNameById = `-- name: GetUserNameById :one
+SELECT
+    name
+FROM
+    users
+WHERE
+    id = $1
 `
 
-type CreateUserParams struct {
-	Username     string
-	Email        string
-	PasswordHash string
-}
-
-type CreateUserRow struct {
-	Username string
-	Email    string
-}
-
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
-	row := q.db.QueryRowContext(ctx, createUser, arg.Username, arg.Email, arg.PasswordHash)
-	var i CreateUserRow
-	err := row.Scan(&i.Username, &i.Email)
-	return i, err
-}
-
-const createUserWithTeam = `-- name: CreateUserWithTeam :one
-INSERT INTO
-    users (username, email, password_hash, team_id)
-VALUES
-    ($1, $2, $3, $4)
-RETURNING
-    username,
-    email,
-    team_id
-`
-
-type CreateUserWithTeamParams struct {
-	Username     string
-	Email        string
-	PasswordHash string
-	TeamID       uuid.NullUUID
-}
-
-type CreateUserWithTeamRow struct {
-	Username string
-	Email    string
-	TeamID   uuid.NullUUID
-}
-
-func (q *Queries) CreateUserWithTeam(ctx context.Context, arg CreateUserWithTeamParams) (CreateUserWithTeamRow, error) {
-	row := q.db.QueryRowContext(ctx, createUserWithTeam,
-		arg.Username,
-		arg.Email,
-		arg.PasswordHash,
-		arg.TeamID,
-	)
-	var i CreateUserWithTeamRow
-	err := row.Scan(&i.Username, &i.Email, &i.TeamID)
-	return i, err
+func (q *Queries) GetUserNameById(ctx context.Context, id uuid.UUID) (string, error) {
+	row := q.db.QueryRowContext(ctx, getUserNameById, id)
+	var name string
+	err := row.Scan(&name)
+	return name, err
 }
