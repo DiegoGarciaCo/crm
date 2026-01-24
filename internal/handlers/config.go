@@ -163,7 +163,6 @@ func (cfg *apiCfg) AuthMiddleware() func(http.Handler) http.Handler {
 
 			// Get X-API-Key header
 			apiKey := r.Header.Get("X-API-Key")
-			cfg.logger.Info("AuthMiddleware: Checking authentication", "apiKey", apiKey != "", "headers", r.Header)
 			if apiKey != "" {
 				// Hash the provided API key
 				hashedKey := HashAPIKey(apiKey)
