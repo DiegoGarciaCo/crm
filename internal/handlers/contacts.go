@@ -95,7 +95,7 @@ func (cfg *apiCfg) CreateContact(w http.ResponseWriter, r *http.Request) {
 			ContactID:   uuid.NullUUID{UUID: contact.ID, Valid: contact.ID != uuid.Nil},
 			PhoneNumber: phone.Number,
 			Type:        sql.NullString{String: phone.Type, Valid: phone.Type != ""},
-			IsPrimary:   sql.NullBool{Bool: phone.IsPrimary, Valid: true},
+			IsPrimary:   sql.NullBool{Bool: phone.IsPrimary, Valid: phone.IsPrimary},
 		})
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Failed to add phone number", err)
@@ -109,7 +109,7 @@ func (cfg *apiCfg) CreateContact(w http.ResponseWriter, r *http.Request) {
 			ContactID:    uuid.NullUUID{UUID: contact.ID, Valid: contact.ID != uuid.Nil},
 			EmailAddress: email.Email,
 			Type:         sql.NullString{String: email.Type, Valid: email.Type != ""},
-			IsPrimary:    sql.NullBool{Bool: email.IsPrimary, Valid: true},
+			IsPrimary:    sql.NullBool{Bool: email.IsPrimary, Valid: email.IsPrimary},
 		})
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Failed to add email", err)
@@ -123,7 +123,7 @@ func (cfg *apiCfg) CreateContact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondWithJSON(w, http.StatusCreated, nil)
+	respondWithJSON(w, http.StatusCreated, contact)
 }
 
 func (cfg *apiCfg) GetContactByID(w http.ResponseWriter, r *http.Request) {

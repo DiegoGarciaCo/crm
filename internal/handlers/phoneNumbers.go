@@ -105,3 +105,20 @@ func (cfg *apiCfg) UpdatePhoneNumber(w http.ResponseWriter, r *http.Request) {
 
 	respondWithJSON(w, http.StatusNoContent, nil)
 }
+
+func (cfg *apiCfg) GetPhoneNumbersByContactID(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ContactID string `json:"contact_id"`
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Payload", err)
+		return
+	}
+
+	// Get Limit Param
+	// Get Offset Param
+	// Get OrderBy Param
+	// Get Order Param
+}
